@@ -43,6 +43,7 @@ import {
 import { SatelliteService } from '../satellite.service';
 import { PositionState, SatelliteApiResponse, PassSelection } from '../satellite.model';
 import { PassesPanel } from '../passes-panel/passes-panel';
+import { SatelliteSearch } from '../satellite-search/satellite-search';
 
 const SATELLITE_ICON = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
@@ -57,7 +58,7 @@ const EXTRAPOLATION_WINDOW_S = 12;
 
 @Component({
   selector: 'app-satellite-map',
-  imports: [DecimalPipe, DatePipe, FormsModule, PassesPanel],
+  imports: [DecimalPipe, DatePipe, FormsModule, PassesPanel, SatelliteSearch],
   templateUrl: './satellite-map.html',
   styleUrl: './satellite-map.scss',
 })
@@ -74,7 +75,8 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   readonly posState     = signal<PositionState>({ data: null, error: null, loading: true });
   readonly tracking     = signal(true);
   readonly cesiumError  = signal<string | null>(null);
-  readonly selectedPass = signal<PassSelection | null>(null);
+  readonly selectedPass  = signal<PassSelection | null>(null);
+  readonly showSearch    = signal(false);
 
   private viewer!: Viewer;
   private sampledPos!: SampledPositionProperty;
@@ -353,6 +355,14 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   onNoradChange(raw: string | number): void {
     const id = parseInt(String(raw), 10);
     if (!isNaN(id) && id > 0) this.noradId.set(id);
+  }
+
+  openSearch(): void  { this.showSearch.set(true);  }
+  closeSearch(): void { this.showSearch.set(false); }
+
+  onSatelliteSelected(noradId: number): void {
+    this.noradId.set(noradId);
+    this.showSearch.set(false);
   }
 
   onPassSelected(sel: PassSelection | null): void {

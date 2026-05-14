@@ -6,7 +6,7 @@ import { Elements, Constants }                    from "@wasmer/sgp4/src/binding
 import type { Result, Error as SgpError }         from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
 import type { Sgp4 }                              from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
 import { temeToGeodetic }                         from "./coords";
-import { openDatabase, getTleByNoradId, getStats } from "./db";
+import { openDatabase, getTleByNoradId, getStats, searchSatellites } from "./db";
 import { syncAll, startCronJob }                  from "./fetcher";
 import { findPasses }                             from "./passes";
 
@@ -108,6 +108,13 @@ async function main(): Promise<void> {
         geodetic: { lat_deg, lon_deg, alt_km },
       },
     });
+  });
+
+  // GET /api/satellites  — search satellites by name or NORAD ID
+  //   Optional: q (search term, default "")
+  app.get("/api/satellites", (req: Request, res: Response) => {
+    const q = ((req.query["q"] as string) ?? "").trim();
+    res.json(searchSatellites(db, q));
   });
 
   // GET /api/status  — catalog stats and last sync info

@@ -53,6 +53,15 @@ interface Stmts {
   startLog:   Database.Statement<[string, string]>;
   finishLog:  Database.Statement<[string, number, number, number, number, string, number]>;
   upsert:     Database.Statement<UpsertParams>;
+  search:     Database.Statement<[string, string, string, number], SearchRow>;
+}
+
+interface SearchRow {
+  norad_id:    number;
+  name:        string;
+  group_name:  string;
+  inclination: number;
+  period_min:  number;
 }
 
 interface UpsertParams extends Record<string, unknown> {
@@ -72,6 +81,7 @@ interface UpsertParams extends Record<string, unknown> {
   meanAnomaly:      number;
   meanMotion:       number;
   revolutionNumber: number;
+  groupName:        string;
   updatedAt:        string;
 }
 
@@ -100,12 +110,12 @@ function stmts(db: Database.Database): Stmts {
         norad_id, name, line1, line2, epoch_ms,
         classification, intl_designator, bstar, mean_motion_dot,
         inclination, raan, eccentricity, arg_perigee,
-        mean_anomaly, mean_motion, revolution_number, updated_at
+        mean_anomaly, mean_motion, revolution_number, group_name, updated_at
       ) VALUES (
         @noradId, @name, @line1, @line2, @epochMs,
         @classification, @intlDesignator, @bstar, @meanMotionDot,
         @inclination, @raan, @eccentricity, @argPerigee,
-        @meanAnomaly, @meanMotion, @revolutionNumber, @updatedAt
+        @meanAnomaly, @meanMotion, @revolutionNumber, @groupName, @updatedAt
       )
       ON CONFLICT(norad_id) DO UPDATE SET
         name              = excluded.name,
@@ -123,8 +133,27 @@ function stmts(db: Database.Database): Stmts {
         mean_anomaly      = excluded.mean_anomaly,
         mean_motion       = excluded.mean_motion,
         revolution_number = excluded.revolution_number,
+        group_name        = excluded.group_name,
         updated_at        = excluded.updated_at
       WHERE excluded.epoch_ms > tles.epoch_ms
+    `),
+    search: db.prepare(`
+      SELECT norad_id, name,
+             COALESCE(group_name, 'Other') AS group_name,
+             inclination,
+             ROUND(1440.0 / mean_motion, 0) AS period_min
+        FROM tles
+       WHERE name LIKE ? OR CAST(norad_id AS TEXT) LIKE ?
+       ORDER BY
+         CASE WHEN UPPER(name) LIKE ? THEN 0 ELSE 1 END,
+         CASE group_name
+           WHEN 'Space Stations'      THEN 0
+           WHEN 'Visually Observable' THEN 1
+           WHEN 'Weather'             THEN 2
+           WHEN 'Amateur Radio'       THEN 3
+           ELSE 4 END,
+         name ASC
+       LIMIT ?
     `),
   };
 
@@ -158,6 +187,7 @@ export function openDatabase(dbPath: string = DB_PATH): Database.Database {
       mean_anomaly      REAL,
       mean_motion       REAL,
       revolution_number INTEGER,
+      group_name        TEXT,
       updated_at        TEXT    NOT NULL
     );
 
@@ -174,6 +204,9 @@ export function openDatabase(dbPath: string = DB_PATH): Database.Database {
     );
   `);
 
+  // Migration: add group_name column to existing databases
+  try { db.exec("ALTER TABLE tles ADD COLUMN group_name TEXT"); } catch { /* already exists */ }
+
   return db;
 }
 
@@ -182,7 +215,11 @@ export interface UpsertResult {
   updated:  number;
 }
 
-export function upsertTles(db: Database.Database, tles: TleRecord[]): UpsertResult {
+export function upsertTles(
+  db:        Database.Database,
+  tles:      TleRecord[],
+  groupName = "Other",
+): UpsertResult {
   const { upsert, getEpoch } = stmts(db);
   const now = new Date().toISOString();
   let inserted = 0;
@@ -191,7 +228,7 @@ export function upsertTles(db: Database.Database, tles: TleRecord[]): UpsertResu
   const run = db.transaction((batch: TleRecord[]) => {
     for (const tle of batch) {
       const prev = getEpoch.get(tle.noradId);
-      const info = upsert.run({ ...tle, updatedAt: now });
+      const info = upsert.run({ ...tle, groupName, updatedAt: now });
       if (info.changes === 1) {
         if (!prev) inserted++;
         else       updated++;
@@ -201,6 +238,31 @@ export function upsertTles(db: Database.Database, tles: TleRecord[]): UpsertResu
 
   run(tles);
   return { inserted, updated };
+}
+
+export interface SatelliteSummary {
+  noradId:    number;
+  name:       string;
+  groupName:  string;
+  inclination: number;
+  periodMin:  number;
+}
+
+export function searchSatellites(
+  db:    Database.Database,
+  q:     string,
+  limit  = 120,
+): SatelliteSummary[] {
+  const term  = `%${q}%`;
+  const start = `${q.toUpperCase()}%`;
+  const rows  = stmts(db).search.all(term, term, start, limit) as SearchRow[];
+  return rows.map(r => ({
+    noradId:     r.norad_id,
+    name:        r.name,
+    groupName:   r.group_name,
+    inclination: Math.round(r.inclination * 10) / 10,
+    periodMin:   Math.round(r.period_min),
+  }));
 }
 
 export function getTleByNoradId(db: Database.Database, noradId: number): TleRow | undefined {

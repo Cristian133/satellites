@@ -67,7 +67,7 @@ async function syncSource(db: Database.Database, source: Source): Promise<SyncRe
       console.warn(`  … and ${parseErrors.length - 5} more`);
   }
 
-  const { inserted, updated } = upsertTles(db, tles);
+  const { inserted, updated } = upsertTles(db, tles, source.name);
   console.log(`${tag} parsed ${tles.length}, inserted ${inserted}, updated ${updated}, rejected ${parseErrors.length}`);
 
   finishSyncLog(db, logId, {

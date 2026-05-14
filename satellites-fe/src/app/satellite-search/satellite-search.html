@@ -1,0 +1,74 @@
+<!-- Backdrop -->
+<div class="backdrop" (click)="close()"></div>
+
+<!-- Palette -->
+<div class="palette" (keydown)="onKeydown($event)">
+
+  <!-- Search input -->
+  <div class="palette__search">
+    <span class="palette__search-icon">🔍</span>
+    <input
+      #searchInput
+      class="palette__input"
+      type="text"
+      placeholder="Buscar por nombre o NORAD ID…"
+      [value]="query()"
+      (input)="onQueryChange($any($event.target).value)"
+    />
+    @if (loading()) {
+      <span class="palette__spinner"></span>
+    } @else if (query()) {
+      <button class="palette__clear" (click)="onQueryChange('')">✕</button>
+    }
+  </div>
+
+  <!-- Results -->
+  <div class="palette__results">
+    @if (grouped().length === 0 && !loading()) {
+      <div class="palette__empty">Sin resultados para "{{ query() }}"</div>
+    }
+
+    @let flat = flatResults();
+
+    @for (group of grouped(); track group.label) {
+      <div class="group">
+        <div class="group__header">
+          <span class="group__icon">{{ group.icon }}</span>
+          <span class="group__label">{{ group.label }}</span>
+          <span class="group__count">{{ group.sats.length }}</span>
+        </div>
+        @for (sat of group.sats; track sat.noradId) {
+          @let idx = flat.indexOf(sat);
+          <div
+            class="sat-row"
+            [class.sat-row--active]="activeIdx() === idx"
+            [class.sat-row--current]="sat.noradId === currentNoradId()"
+            (click)="select(sat.noradId)"
+            (mouseenter)="activeIdx.set(idx)"
+          >
+            <span class="sat-row__name">{{ sat.name }}</span>
+            <span class="sat-row__meta">
+              <span class="sat-row__orbit" [attr.data-type]="orbitType(sat.periodMin, sat.inclination)">
+                {{ orbitType(sat.periodMin, sat.inclination) }}
+              </span>
+              <span class="sat-row__period">{{ formatPeriod(sat.periodMin) }}</span>
+              <span class="sat-row__inc">{{ sat.inclination }}°</span>
+              <span class="sat-row__id">{{ sat.noradId }}</span>
+            </span>
+            @if (sat.noradId === currentNoradId()) {
+              <span class="sat-row__check">✓</span>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Footer -->
+  <div class="palette__footer">
+    <span>↑↓ navegar</span>
+    <span>↵ seleccionar</span>
+    <span>ESC cerrar</span>
+  </div>
+
+</div>

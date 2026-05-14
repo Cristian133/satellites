@@ -61,6 +61,14 @@ export interface FindPassesResult {
   passes:    SatellitePass[];
 }
 
+export interface SatelliteSummary {
+  noradId:     number;
+  name:        string;
+  groupName:   string;
+  inclination: number;
+  periodMin:   number;
+}
+
 export interface PassSelection {
   pass:        SatellitePass;
   observerLat: number;

@@ -12,7 +12,7 @@ import {
   startWith,
   switchMap,
 } from 'rxjs';
-import { FindPassesResult, PositionState, SatelliteApiResponse } from './satellite.model';
+import { FindPassesResult, PositionState, SatelliteApiResponse, SatelliteSummary } from './satellite.model';
 
 @Injectable({ providedIn: 'root' })
 export class SatelliteService {
@@ -60,6 +60,10 @@ export class SatelliteService {
       ),
       shareReplay(1)
     );
+  }
+
+  searchSatellites(q: string): Observable<SatelliteSummary[]> {
+    return this.http.get<SatelliteSummary[]>('/api/satellites', { params: { q } });
   }
 
   getPasses(

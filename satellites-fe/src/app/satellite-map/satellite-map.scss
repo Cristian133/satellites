@@ -132,6 +132,20 @@
     }
   }
 
+  &__search-btn {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0.2rem 0.35rem;
+    line-height: 1.4;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+
+    &:hover { border-color: #38bdf8; }
+  }
+
   &__error {
     font-size: 0.78rem;
     color: #fca5a5;

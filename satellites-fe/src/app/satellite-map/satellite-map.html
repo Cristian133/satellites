@@ -36,6 +36,7 @@
           [ngModel]="noradId()"
           (ngModelChange)="onNoradChange($event)"
         />
+        <button class="hud__search-btn" (click)="openSearch()" title="Buscar satélite">🔍</button>
       </div>
     </header>
 
@@ -88,6 +89,15 @@
   />
 
 </div>
+
+<!-- ── Satellite search palette ──────────────────────────────────────────── -->
+@if (showSearch()) {
+  <app-satellite-search
+    [currentNoradId]="noradId()"
+    (satelliteSelected)="onSatelliteSelected($event)"
+    (closed)="closeSearch()"
+  />
+}
 
 <!-- ── Pass detail card (over the globe) ─────────────────────────────────── -->
 @if (selectedPass(); as sel) {
