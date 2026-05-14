@@ -6,6 +6,7 @@ import type { Sgp4, Result, Error as SgpError }   from "@wasmer/sgp4/src/binding
 import { getTleByNoradId }                        from "./db";
 import { temeToEcef }                             from "./coords";
 import { sunDirectionEcef, isInEarthShadow, sunElevationDeg } from "./sun";
+import { stdMagnitude, apparentMagnitude }        from "./magnitude";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ export interface SatellitePass {
   visible:          boolean;    // dark observer + illuminated satellite at peak
   maxElevation_deg: number;
   duration_s:       number;
+  magnitude:        number | null;  // apparent visual mag at peak; null if in Earth shadow
 }
 
 export interface FindPassesOptions {
@@ -194,10 +196,14 @@ export function findPasses(
     const setSample  = sampleAt(setMs);
     if (!riseSample || !setSample) return;
 
-    const sunDir  = sunDirectionEcef(new Date(peak.ms));
-    const visible =
-      sunElevationDeg(obsEcef, sunDir) < TWILIGHT_DEG &&
-      !isInEarthShadow(peak.satEcef, sunDir);
+    const sunDir    = sunDirectionEcef(new Date(peak.ms));
+    const inShadow  = isInEarthShadow(peak.satEcef, sunDir);
+    const visible   =
+      sunElevationDeg(obsEcef, sunDir) < TWILIGHT_DEG && !inShadow;
+
+    const magnitude = inShadow
+      ? null
+      : apparentMagnitude(peak.satEcef, obsEcef, sunDir, stdMagnitude(noradId));
 
     passes.push({
       rise:             { time: new Date(riseMs).toISOString(), az_deg: r1(riseSample.az_deg), el_deg: r1(riseSample.el_deg) },
@@ -206,6 +212,7 @@ export function findPasses(
       visible,
       maxElevation_deg: r1(peak.el_deg),
       duration_s:       Math.round((setMs - riseMs) / 1000),
+      magnitude,
     });
   }
 

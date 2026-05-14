@@ -17,7 +17,9 @@ import { FormsModule } from '@angular/forms';
 import { switchMap } from 'rxjs';
 
 import {
+  ArcType,
   buildModuleUrl,
+  CallbackProperty,
   Cartesian2,
   Cartesian3,
   ClockRange,
@@ -31,6 +33,7 @@ import {
   LabelStyle,
   LagrangePolynomialApproximation,
   NearFarScalar,
+  PolylineDashMaterialProperty,
   PolylineGlowMaterialProperty,
   SampledPositionProperty,
   TileMapServiceImageryProvider,
@@ -38,7 +41,7 @@ import {
 } from 'cesium';
 
 import { SatelliteService } from '../satellite.service';
-import { PositionState, SatelliteApiResponse } from '../satellite.model';
+import { PositionState, SatelliteApiResponse, PassSelection } from '../satellite.model';
 import { PassesPanel } from '../passes-panel/passes-panel';
 
 const SATELLITE_ICON = `data:image/svg+xml,${encodeURIComponent(`
@@ -67,13 +70,15 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector   = inject(Injector);
 
-  readonly noradId     = signal(25544);
-  readonly posState    = signal<PositionState>({ data: null, error: null, loading: true });
-  readonly tracking    = signal(true);
-  readonly cesiumError = signal<string | null>(null);
+  readonly noradId      = signal(25544);
+  readonly posState     = signal<PositionState>({ data: null, error: null, loading: true });
+  readonly tracking     = signal(true);
+  readonly cesiumError  = signal<string | null>(null);
+  readonly selectedPass = signal<PassSelection | null>(null);
 
   private viewer!: Viewer;
   private sampledPos!: SampledPositionProperty;
+  private groundSampledPos!: SampledPositionProperty;
   private firstSample = true;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -87,6 +92,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         this.initViewer();
         this.initSampledPosition();
         this.addSatelliteEntity();
+        this.addGroundProjectionEntities();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[SatelliteMap] Cesium init error:', err);
@@ -153,6 +159,14 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     });
     this.sampledPos.forwardExtrapolationType     = ExtrapolationType.EXTRAPOLATE;
     this.sampledPos.forwardExtrapolationDuration = EXTRAPOLATION_WINDOW_S;
+
+    this.groundSampledPos = new SampledPositionProperty();
+    this.groundSampledPos.setInterpolationOptions({
+      interpolationDegree:    5,
+      interpolationAlgorithm: LagrangePolynomialApproximation,
+    });
+    this.groundSampledPos.forwardExtrapolationType     = ExtrapolationType.EXTRAPOLATE;
+    this.groundSampledPos.forwardExtrapolationDuration = EXTRAPOLATION_WINDOW_S;
   }
 
   private addSatelliteEntity(): void {
@@ -186,6 +200,41 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         material: new PolylineGlowMaterialProperty({
           glowPower: 0.2,
           color: Color.fromCssColorString('#38bdf860'),
+        }),
+      },
+    });
+  }
+
+  private addGroundProjectionEntities(): void {
+    this.viewer.entities.add({
+      id: 'ground-projection',
+      position: this.groundSampledPos,
+      point: {
+        pixelSize: 10,
+        color: Color.fromCssColorString('#38bdf8'),
+        outlineColor: Color.fromCssColorString('#0c4a6e'),
+        outlineWidth: 2,
+        heightReference: HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scaleByDistance: new NearFarScalar(1.5e6, 1.2, 1.5e8, 0.4),
+      },
+    });
+
+    this.viewer.entities.add({
+      id: 'nadir-line',
+      polyline: {
+        positions: new CallbackProperty(() => {
+          const now = JulianDate.now();
+          const satPos = this.sampledPos.getValue(now);
+          const gndPos = this.groundSampledPos.getValue(now);
+          if (!satPos || !gndPos) return [];
+          return [gndPos, satPos];
+        }, false),
+        width: 1.5,
+        arcType: ArcType.NONE,
+        material: new PolylineDashMaterialProperty({
+          color: Color.fromCssColorString('#38bdf850'),
+          dashLength: 16,
         }),
       },
     });
@@ -234,6 +283,10 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         entity.label.text.setValue('');
       }
     }
+    const groundEntity = this.viewer.entities.getById('ground-projection');
+    if (groundEntity) {
+      groundEntity.position = this.groundSampledPos as any;
+    }
   }
 
   private addSample(data: SatelliteApiResponse): void {
@@ -244,6 +297,10 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     const position = new Cartesian3(x * 1000, y * 1000, z * 1000);
 
     this.sampledPos.addSample(time, position);
+
+    const { lat_deg, lon_deg } = data.state.geodetic;
+    this.groundSampledPos.addSample(time, Cartesian3.fromDegrees(lon_deg, lat_deg, 0));
+
     this.viewer.clock.currentTime = JulianDate.now();
 
     const entity = this.viewer.entities.getById('satellite');
@@ -296,5 +353,68 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   onNoradChange(raw: string | number): void {
     const id = parseInt(String(raw), 10);
     if (!isNaN(id) && id > 0) this.noradId.set(id);
+  }
+
+  onPassSelected(sel: PassSelection | null): void {
+    this.selectedPass.set(sel);
+  }
+
+  closePassDetail(): void {
+    this.selectedPass.set(null);
+  }
+
+  private static readonly CARDINAL = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+
+  azToCardinal(az: number): string {
+    return SatelliteMap.CARDINAL[Math.round(az / 22.5) % 16]!;
+  }
+
+  formatDuration(s: number): string {
+    const m   = Math.floor(s / 60);
+    const sec = s % 60;
+    return sec > 0 ? `${m}m ${sec}s` : `${m}m`;
+  }
+
+  passStatus(sel: PassSelection): 'upcoming' | 'active' | 'past' {
+    const now  = Date.now();
+    const rise = new Date(sel.pass.rise.time).getTime();
+    const set  = new Date(sel.pass.set.time).getTime();
+    if (now < rise) return 'upcoming';
+    if (now <= set)  return 'active';
+    return 'past';
+  }
+
+  countdown(sel: PassSelection): string {
+    const now  = Date.now();
+    const rise = new Date(sel.pass.rise.time).getTime();
+    const set  = new Date(sel.pass.set.time).getTime();
+
+    if (now < rise) {
+      const diff = rise - now;
+      const h = Math.floor(diff / 3_600_000);
+      const m = Math.floor((diff % 3_600_000) / 60_000);
+      const s = Math.floor((diff % 60_000) / 1_000);
+      if (h > 0) return `en ${h}h ${m}m`;
+      if (m > 0) return `en ${m}m ${s}s`;
+      return `en ${s}s`;
+    }
+    if (now <= set) {
+      const remaining = set - now;
+      const m = Math.floor(remaining / 60_000);
+      const s = Math.floor((remaining % 60_000) / 1_000);
+      return m > 0 ? `termina en ${m}m ${s}s` : `termina en ${s}s`;
+    }
+    const elapsed = now - set;
+    const h = Math.floor(elapsed / 3_600_000);
+    const m = Math.floor((elapsed % 3_600_000) / 60_000);
+    if (h > 0) return `hace ${h}h ${m}m`;
+    return `hace ${m}m`;
+  }
+
+  elevationQuality(el: number): string {
+    if (el >= 60) return 'excelente';
+    if (el >= 30) return 'bueno';
+    if (el >= 15) return 'bajo';
+    return 'rasante';
   }
 }

@@ -1,8 +1,8 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule }   from '@angular/forms';
 import { DatePipe }      from '@angular/common';
-import { SatelliteService }               from '../satellite.service';
-import type { SatellitePass }             from '../satellite.model';
+import { SatelliteService }                       from '../satellite.service';
+import type { SatellitePass, PassSelection }       from '../satellite.model';
 
 const CARDINAL = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
 
@@ -13,22 +13,28 @@ const CARDINAL = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO'
   styleUrl:    './passes-panel.scss',
 })
 export class PassesPanel {
-  readonly noradId = input.required<number>();
+  readonly noradId      = input.required<number>();
+  readonly passSelected = output<PassSelection | null>();
 
   private readonly service = inject(SatelliteService);
 
-  readonly lat       = signal<number | null>(null);
-  readonly lon       = signal<number | null>(null);
-  readonly loading   = signal(false);
-  readonly error     = signal<string | null>(null);
-  readonly expanded  = signal(true);
-  readonly hasSearched = signal(false);
+  readonly lat          = signal<number | null>(null);
+  readonly lon          = signal<number | null>(null);
+  readonly loading      = signal(false);
+  readonly error        = signal<string | null>(null);
+  readonly expanded     = signal(true);
+  readonly hasSearched  = signal(false);
+  readonly onlyVisible  = signal(false);
+  readonly selectedPass = signal<SatellitePass | null>(null);
 
   private readonly rawPasses = signal<SatellitePass[]>([]);
 
   readonly groupedPasses = computed(() => {
+    const list = this.onlyVisible()
+      ? this.rawPasses().filter(p => p.visible)
+      : this.rawPasses();
     const groups = new Map<string, SatellitePass[]>();
-    for (const p of this.rawPasses()) {
+    for (const p of list) {
       const key = new Date(p.rise.time).toLocaleDateString('es-AR', {
         weekday: 'short', day: 'numeric', month: 'short',
       });
@@ -48,11 +54,33 @@ export class PassesPanel {
       this.rawPasses.set([]);
       this.hasSearched.set(false);
       this.error.set(null);
+      this.selectedPass.set(null);
+      this.passSelected.emit(null);
     });
   }
 
   toggle(): void {
     this.expanded.set(!this.expanded());
+  }
+
+  toggleVisibleFilter(): void {
+    this.onlyVisible.set(!this.onlyVisible());
+    this.selectedPass.set(null);
+    this.passSelected.emit(null);
+  }
+
+  selectPass(pass: SatellitePass): void {
+    if (this.selectedPass() === pass) {
+      this.selectedPass.set(null);
+      this.passSelected.emit(null);
+    } else {
+      this.selectedPass.set(pass);
+      this.passSelected.emit({
+        pass,
+        observerLat: this.lat()!,
+        observerLon: this.lon()!,
+      });
+    }
   }
 
   azToCardinal(az: number): string {

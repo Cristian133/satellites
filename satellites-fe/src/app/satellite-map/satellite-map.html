@@ -82,6 +82,106 @@
 
   </aside>
 
-  <app-passes-panel [noradId]="noradId()" />
+  <app-passes-panel
+    [noradId]="noradId()"
+    (passSelected)="onPassSelected($event)"
+  />
 
 </div>
+
+<!-- ── Pass detail card (over the globe) ─────────────────────────────────── -->
+@if (selectedPass(); as sel) {
+  <div class="pass-detail">
+
+    <!-- Header -->
+    <div class="pass-detail__header">
+      <div class="pass-detail__title">
+        <div class="pass-detail__title-row">
+          <span class="pass-detail__sat">{{ satelliteName ?? 'Satélite' }}</span>
+          <span
+            class="pass-detail__status"
+            [class.pass-detail__status--active]="passStatus(sel) === 'active'"
+            [class.pass-detail__status--past]="passStatus(sel) === 'past'"
+          >
+            {{ passStatus(sel) === 'active' ? 'EN PROGRESO' : countdown(sel) }}
+          </span>
+        </div>
+        <span class="pass-detail__date">
+          {{ sel.pass.rise.time | date:'EEEE d \'de\' MMMM':'UTC':'es' }}
+          &nbsp;·&nbsp;
+          {{ azToCardinal(sel.pass.rise.az_deg) }} → {{ azToCardinal(sel.pass.peak.az_deg) }} → {{ azToCardinal(sel.pass.set.az_deg) }}
+        </span>
+      </div>
+      <button class="pass-detail__close" (click)="closePassDetail()">✕</button>
+    </div>
+
+    <!-- Rise / Peak / Set table -->
+    <div class="pass-detail__table">
+      <div class="pass-detail__row pass-detail__row--label">
+        <span></span>
+        <span>UTC</span>
+        <span>Local</span>
+        <span>Az</span>
+        <span>El</span>
+      </div>
+      <div class="pass-detail__row">
+        <span class="pass-detail__event">Subida</span>
+        <span class="pass-detail__time">{{ sel.pass.rise.time | date:'HH:mm:ss':'UTC' }}</span>
+        <span class="pass-detail__time pass-detail__time--local">{{ sel.pass.rise.time | date:'HH:mm:ss' }}</span>
+        <span class="pass-detail__az">{{ azToCardinal(sel.pass.rise.az_deg) }}&nbsp;{{ sel.pass.rise.az_deg | number:'1.0-0' }}°</span>
+        <span class="pass-detail__el">{{ sel.pass.rise.el_deg | number:'1.0-0' }}°</span>
+      </div>
+      <div class="pass-detail__row pass-detail__row--peak">
+        <span class="pass-detail__event">Pico</span>
+        <span class="pass-detail__time">{{ sel.pass.peak.time | date:'HH:mm:ss':'UTC' }}</span>
+        <span class="pass-detail__time pass-detail__time--local">{{ sel.pass.peak.time | date:'HH:mm:ss' }}</span>
+        <span class="pass-detail__az">{{ azToCardinal(sel.pass.peak.az_deg) }}&nbsp;{{ sel.pass.peak.az_deg | number:'1.0-0' }}°</span>
+        <span class="pass-detail__el pass-detail__el--peak">{{ sel.pass.maxElevation_deg | number:'1.0-0' }}°</span>
+      </div>
+      <div class="pass-detail__row">
+        <span class="pass-detail__event">Bajada</span>
+        <span class="pass-detail__time">{{ sel.pass.set.time | date:'HH:mm:ss':'UTC' }}</span>
+        <span class="pass-detail__time pass-detail__time--local">{{ sel.pass.set.time | date:'HH:mm:ss' }}</span>
+        <span class="pass-detail__az">{{ azToCardinal(sel.pass.set.az_deg) }}&nbsp;{{ sel.pass.set.az_deg | number:'1.0-0' }}°</span>
+        <span class="pass-detail__el">{{ sel.pass.set.el_deg | number:'1.0-0' }}°</span>
+      </div>
+    </div>
+
+    <!-- Meta row -->
+    <div class="pass-detail__meta">
+      <div class="pass-detail__meta-item">
+        <span class="pass-detail__meta-label">Duración</span>
+        <span class="pass-detail__meta-value">{{ formatDuration(sel.pass.duration_s) }}</span>
+      </div>
+      <div class="pass-detail__meta-item">
+        <span class="pass-detail__meta-label">El. máx.</span>
+        <span class="pass-detail__meta-value">
+          {{ sel.pass.maxElevation_deg | number:'1.0-0' }}°
+          <span class="pass-detail__quality">{{ elevationQuality(sel.pass.maxElevation_deg) }}</span>
+        </span>
+      </div>
+      @if (sel.pass.magnitude != null) {
+        <div class="pass-detail__meta-item">
+          <span class="pass-detail__meta-label">Magnitud</span>
+          <span class="pass-detail__meta-value" [class.pass-detail__meta-bright]="sel.pass.magnitude <= 2">
+            ★ {{ sel.pass.magnitude >= 0 ? '+' : '' }}{{ sel.pass.magnitude }}
+          </span>
+        </div>
+      }
+      <div class="pass-detail__meta-item">
+        <span class="pass-detail__meta-label">Visibilidad</span>
+        <span class="pass-detail__meta-value" [class.pass-detail__meta-visible]="sel.pass.visible">
+          {{ sel.pass.visible ? '● visible' : (sel.pass.magnitude != null ? '● iluminado' : '● en sombra') }}
+        </span>
+      </div>
+      <div class="pass-detail__meta-item">
+        <span class="pass-detail__meta-label">Observador</span>
+        <span class="pass-detail__meta-value pass-detail__meta-obs">
+          {{ sel.observerLat | number:'1.2-2' }}°&nbsp;{{ sel.observerLat >= 0 ? 'N' : 'S' }},
+          {{ sel.observerLon | number:'1.2-2' }}°&nbsp;{{ sel.observerLon >= 0 ? 'E' : 'O' }}
+        </span>
+      </div>
+    </div>
+
+  </div>
+}

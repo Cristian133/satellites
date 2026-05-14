@@ -52,10 +52,17 @@ export interface SatellitePass {
   visible:          boolean;
   maxElevation_deg: number;
   duration_s:       number;
+  magnitude:        number | null;
 }
 
 export interface FindPassesResult {
   satellite: { noradId: number; name: string; tleAge_h: number };
   observer:  { lat_deg: number; lon_deg: number; alt_km: number };
   passes:    SatellitePass[];
+}
+
+export interface PassSelection {
+  pass:        SatellitePass;
+  observerLat: number;
+  observerLon: number;
 }

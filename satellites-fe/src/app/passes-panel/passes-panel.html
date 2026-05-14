@@ -21,14 +21,26 @@
                [ngModel]="lon()" (ngModelChange)="lon.set(+$event)" placeholder="–" />
       </div>
 
-      <!-- Search button -->
-      <button class="search-btn" [disabled]="!canSearch()" (click)="search()">
-        @if (loading()) {
-          <span class="spinner-sm"></span>
-        } @else {
-          Buscar pases · 3 días
+      <!-- Search + filter row -->
+      <div class="action-row">
+        <button class="search-btn" [disabled]="!canSearch()" (click)="search()">
+          @if (loading()) {
+            <span class="spinner-sm"></span>
+          } @else {
+            Buscar · 3 días
+          }
+        </button>
+        @if (hasSearched()) {
+          <button
+            class="filter-btn"
+            [class.filter-btn--active]="onlyVisible()"
+            (click)="toggleVisibleFilter()"
+            title="Mostrar solo visibles"
+          >
+            ★
+          </button>
         }
-      </button>
+      </div>
 
       <!-- Error -->
       @if (error()) {
@@ -43,7 +55,12 @@
               <div class="date-group__label">{{ group.date }}</div>
               <div class="date-group__passes">
                 @for (pass of group.passes; track pass.rise.time) {
-                  <div class="pass-card" [class.pass-card--visible]="pass.visible">
+                  <div
+                    class="pass-card"
+                    [class.pass-card--visible]="pass.visible"
+                    [class.pass-card--selected]="selectedPass() === pass"
+                    (click)="selectPass(pass)"
+                  >
                     <div class="pass-card__top">
                       <span class="pass-dot" [class.pass-dot--visible]="pass.visible"></span>
                       <span class="pass-time">
@@ -61,6 +78,12 @@
                       </span>
                       <span class="pass-sep">·</span>
                       <span class="pass-dur">{{ formatDuration(pass.duration_s) }}</span>
+                      @if (pass.magnitude != null) {
+                        <span class="pass-sep">·</span>
+                        <span class="pass-mag" [class.pass-mag--bright]="pass.magnitude <= 2">
+                          ★ {{ pass.magnitude >= 0 ? '+' : '' }}{{ pass.magnitude }}
+                        </span>
+                      }
                       @if (pass.visible) {
                         <span class="pass-sep">·</span>
                         <span class="pass-visible-tag">visible</span>
