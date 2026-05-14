@@ -1,0 +1,87 @@
+<!-- Full-screen Cesium canvas -->
+<div #cesiumContainer class="cesium-host"></div>
+
+<!-- Cesium init error (shown over the canvas if Cesium itself failed) -->
+@if (cesiumError()) {
+  <div class="cesium-fatal">
+    <span>⚠ Error al inicializar CesiumJS</span>
+    <code>{{ cesiumError() }}</code>
+  </div>
+}
+
+<!-- ── Left side overlay: HUD + passes panel ──────────────────────────────── -->
+<div class="side-panels">
+
+  <aside class="hud">
+
+    <header class="hud__header">
+      <div class="hud__name">
+        @if (satelliteName) {
+          <span class="hud__live-dot"></span>
+          <span>{{ satelliteName }}</span>
+        } @else if (posState().loading) {
+          <span class="hud__spinner"></span>
+          <span>Conectando…</span>
+        } @else {
+          <span>Satellite Tracker</span>
+        }
+      </div>
+
+      <div class="hud__id-row">
+        <label for="norad-hud">NORAD</label>
+        <input
+          id="norad-hud"
+          type="number"
+          min="1"
+          [ngModel]="noradId()"
+          (ngModelChange)="onNoradChange($event)"
+        />
+      </div>
+    </header>
+
+    @if (posState().error && !posState().loading) {
+      <div class="hud__error">
+        ⚠ {{ posState().error }}
+        <small>¿Está el backend corriendo en :3000?</small>
+      </div>
+    }
+
+    @if (geodetic) {
+      <div class="hud__grid">
+        <div class="hud__card">
+          <span class="hud__card-label">Lat</span>
+          <span class="hud__card-value">{{ geodetic.lat_deg | number:'1.3-3' }}°</span>
+          <span class="hud__card-hem">{{ geodetic.lat_deg >= 0 ? 'N' : 'S' }}</span>
+        </div>
+        <div class="hud__card">
+          <span class="hud__card-label">Lon</span>
+          <span class="hud__card-value">{{ geodetic.lon_deg | number:'1.3-3' }}°</span>
+          <span class="hud__card-hem">{{ geodetic.lon_deg >= 0 ? 'E' : 'O' }}</span>
+        </div>
+        <div class="hud__card hud__card--wide">
+          <span class="hud__card-label">Altitud</span>
+          <span class="hud__card-value">{{ geodetic.alt_km | number:'1.0-0' }}</span>
+          <span class="hud__card-hem">km</span>
+        </div>
+      </div>
+
+      <footer class="hud__footer">
+        @if (lastUpdate) {
+          {{ lastUpdate | date:'HH:mm:ss':'UTC' }} UTC · cada 3 s
+        }
+      </footer>
+    }
+
+    <button
+      class="hud__cam-btn"
+      [class.hud__cam-btn--active]="tracking()"
+      (click)="toggleTracking()"
+    >
+      {{ tracking() ? '🔒 Siguiendo satélite' : '🖱 Cámara libre' }}
+    </button>
+
+  </aside>
+
+  <app-passes-panel [noradId]="noradId()" />
+
+</div>

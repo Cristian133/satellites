@@ -1,0 +1,7 @@
+{
+  "name": "@wasmer/sgp4",
+  "version": "0.1.2",
+  "description": "SGP4 orbital propagator — neuromorphicsystems/sgp4 compiled to WebAssembly via wasmerio/sgp4",
+  "main": "src/index.js",
+  "license": "MIT OR Apache-2.0"
+}

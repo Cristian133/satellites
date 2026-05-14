@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sL \"https://celestrak.org/SOCRATES/query/ISS.txt\")",
+      "Bash(curl -sL \"https://celestrak.org/satcat/tle.php?CATNR=25544\")",
+      "Bash(curl -sL \"https://celestrak.org/SPACETRACK/query/class/gp/CATNR/25544/FORMAT/TLE/\")",
+      "Bash(node -e ' *)",
+      "Bash(node *)",
+      "Bash(curl -s http://localhost:3000/api/satellite/25544)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:3000/api/satellite/99999)",
+      "Bash(pkill -f \"node src/index.js\")",
+      "Bash(npm install *)",
+      "Bash(curl -sI \"https://celestrak.org/pub/TLE/active.txt\")",
+      "Bash(curl -sI \"https://celestrak.org/pub/TLE/active.txt\" -A \"Mozilla/5.0\")",
+      "Bash(curl -sI \"https://celestrak.org/pub/TLE/stations.txt\" -A \"Mozilla/5.0\")",
+      "Bash(curl -sI \"https://celestrak.org/SOCRATES/query/ISS.txt\" -A \"Mozilla/5.0\")",
+      "Bash(curl -sI \"https://celestrak.org/SPACETRACK/query/class/gp/special/recent/FORMAT/TLE/\" -A \"Mozilla/5.0\")",
+      "Bash(curl -sI \"https://celestrak.org/SPACETRACK/query/class/gp/GROUP/active/FORMAT/TLE/\" -A \"Mozilla/5.0\")",
+      "Bash(curl -sI \"https://celestrak.org/SPACETRACK/query/class/gp/CATNR/25544/FORMAT/TLE/\" -A \"Mozilla/5.0\")",
+      "WebFetch(domain:celestrak.org)",
+      "Bash(curl -sI \"https://celestrak.org/NORAD/elements/stations.txt\" -A \"Mozilla/5.0\")",
+      "Bash(curl -sI \"https://celestrak.org/NORAD/elements/active.txt\" -A \"Mozilla/5.0\")",
+      "Bash(curl -s \"https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle\" -A \"Mozilla/5.0\")",
+      "Bash(curl -s \"https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle\" -A \"Mozilla/5.0\")",
+      "Bash(curl -s \"https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle\" -A \"Mozilla/5.0\" -o /tmp/active_tle.txt)",
+      "Read(//tmp/**)",
+      "Bash(curl -s \"https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle\" -A \"Mozilla/5.0\" -o /tmp/stations_tle.txt)",
+      "Bash(curl -s \"https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle\" -A \"Mozilla/5.0\" -o /tmp/visual_tle.txt)",
+      "Bash(SYNC_ON_START=false DB_PATH=/tmp/sat_test.db node src/index.js)",
+      "Bash(curl -s http://localhost:3000/api/status)",
+      "Bash(npx @angular/cli version)",
+      "Bash(ng version *)",
+      "Bash(ng new *)",
+      "Bash(ng generate *)",
+      "Bash(npx tsc *)",
+      "Bash(ng build *)",
+      "Bash(python3 -c ' *)",
+      "Bash(kill %1)"
+    ]
+  }
+}

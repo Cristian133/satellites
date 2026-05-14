@@ -1,0 +1,82 @@
+<div class="panel">
+
+  <div class="panel__header" (click)="toggle()">
+    <span class="panel__title">Pases próximos</span>
+    <span class="panel__chevron" [class.panel__chevron--open]="expanded()">▾</span>
+  </div>
+
+  @if (expanded()) {
+    <div class="panel__body">
+
+      <!-- Observer inputs -->
+      <div class="obs-row">
+        <label>Lat</label>
+        <input type="number" min="-90" max="90" step="0.0001"
+               [ngModel]="lat()" (ngModelChange)="lat.set(+$event)" placeholder="–" />
+        <button class="geo-btn" (click)="useMyLocation()" title="Usar mi ubicación">📍</button>
+      </div>
+      <div class="obs-row">
+        <label>Lon</label>
+        <input type="number" min="-180" max="180" step="0.0001"
+               [ngModel]="lon()" (ngModelChange)="lon.set(+$event)" placeholder="–" />
+      </div>
+
+      <!-- Search button -->
+      <button class="search-btn" [disabled]="!canSearch()" (click)="search()">
+        @if (loading()) {
+          <span class="spinner-sm"></span>
+        } @else {
+          Buscar pases · 3 días
+        }
+      </button>
+
+      <!-- Error -->
+      @if (error()) {
+        <div class="panel-error">⚠ {{ error() }}</div>
+      }
+
+      <!-- Passes list -->
+      @if (groupedPasses().length > 0) {
+        <div class="passes-list">
+          @for (group of groupedPasses(); track group.date) {
+            <div class="date-group">
+              <div class="date-group__label">{{ group.date }}</div>
+              <div class="date-group__passes">
+                @for (pass of group.passes; track pass.rise.time) {
+                  <div class="pass-card" [class.pass-card--visible]="pass.visible">
+                    <div class="pass-card__top">
+                      <span class="pass-dot" [class.pass-dot--visible]="pass.visible"></span>
+                      <span class="pass-time">
+                        {{ pass.rise.time | date:'HH:mm' }} – {{ pass.set.time | date:'HH:mm' }}
+                      </span>
+                      <span class="pass-el">{{ pass.maxElevation_deg }}°</span>
+                    </div>
+                    <div class="pass-card__bottom">
+                      <span class="pass-dir">
+                        {{ azToCardinal(pass.rise.az_deg) }}
+                        →
+                        {{ azToCardinal(pass.peak.az_deg) }}
+                        →
+                        {{ azToCardinal(pass.set.az_deg) }}
+                      </span>
+                      <span class="pass-sep">·</span>
+                      <span class="pass-dur">{{ formatDuration(pass.duration_s) }}</span>
+                      @if (pass.visible) {
+                        <span class="pass-sep">·</span>
+                        <span class="pass-visible-tag">visible</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else if (hasSearched() && !loading()) {
+        <div class="no-passes">Sin pases en los próximos 3 días</div>
+      }
+
+    </div>
+  }
+
+</div>

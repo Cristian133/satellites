@@ -1,0 +1,68 @@
+<section class="tracker">
+
+  <header class="tracker__header">
+    <div class="tracker__title">
+      <div>
+        <h1>{{ satelliteName ?? 'Satellite Tracker' }}</h1>
+        <p class="tracker__subtitle">Propagación SGP4 · TEME → PEF → WGS84</p>
+      </div>
+    </div>
+
+    <div class="tracker__search">
+      <label for="norad-input">NORAD ID</label>
+      <input
+        id="norad-input"
+        type="number"
+        min="1"
+        [ngModel]="noradId()"
+        (ngModelChange)="onNoradChange($event)"
+      />
+    </div>
+  </header>
+
+  @if (state().loading) {
+    <div class="tracker__status tracker__status--loading">
+      <span class="spinner"></span>
+      Conectando con el backend…
+    </div>
+  }
+
+  @if (state().error && !state().loading) {
+    <div class="tracker__status tracker__status--error">
+      ⚠️ {{ state().error }}
+    </div>
+  }
+
+  @if (geodetic) {
+    <div class="tracker__grid">
+
+      <div class="tracker__card">
+        <span class="tracker__card-label">Latitud</span>
+        <span class="tracker__card-value">{{ geodetic.lat_deg | number: '1.4-4' }}°</span>
+        <span class="tracker__card-unit">{{ geodetic.lat_deg >= 0 ? 'N' : 'S' }}</span>
+      </div>
+
+      <div class="tracker__card">
+        <span class="tracker__card-label">Longitud</span>
+        <span class="tracker__card-value">{{ geodetic.lon_deg | number: '1.4-4' }}°</span>
+        <span class="tracker__card-unit">{{ geodetic.lon_deg >= 0 ? 'E' : 'O' }}</span>
+      </div>
+
+      <div class="tracker__card">
+        <span class="tracker__card-label">Altitud</span>
+        <span class="tracker__card-value">{{ geodetic.alt_km | number: '1.1-1' }}</span>
+        <span class="tracker__card-unit">km</span>
+      </div>
+
+    </div>
+
+    <footer class="tracker__footer">
+      <span class="tracker__live-dot"></span>
+      Actualización cada 3 s
+      @if (lastUpdate) {
+        · Última: {{ lastUpdate | date: 'HH:mm:ss' : 'UTC' }} UTC
+      }
+    </footer>
+  }
+
+</section>
