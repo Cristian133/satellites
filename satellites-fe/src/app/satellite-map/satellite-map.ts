@@ -35,7 +35,9 @@ import {
   NearFarScalar,
   PolylineDashMaterialProperty,
   PolylineGlowMaterialProperty,
+  Rectangle,
   SampledPositionProperty,
+  SingleTileImageryProvider,
   TileMapServiceImageryProvider,
   Viewer,
 } from 'cesium';
@@ -52,6 +54,17 @@ const SATELLITE_ICON = `data:image/svg+xml,${encodeURIComponent(`
   <rect x="27" y="16" width="11" height="8"  rx="2" fill="#1565c0"/>
   <line x1="20" y1="15" x2="20" y2="7"  stroke="#90caf9" stroke-width="1.5"/>
   <circle cx="20" cy="5" r="3" fill="#90caf9"/>
+</svg>`)}`;
+
+const SUN_ICON = `data:image/svg+xml,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <circle cx="16" cy="16" r="7" fill="#fbbf24"/>
+  <g stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round" opacity="0.75">
+    <line x1="16" y1="2"  x2="16" y2="6"/>  <line x1="16" y1="26" x2="16" y2="30"/>
+    <line x1="2"  y1="16" x2="6"  y2="16"/> <line x1="26" y1="16" x2="30" y2="16"/>
+    <line x1="6"  y1="6"  x2="9"  y2="9"/>  <line x1="23" y1="23" x2="26" y2="26"/>
+    <line x1="26" y1="6"  x2="23" y2="9"/>  <line x1="9"  y1="23" x2="6"  y2="26"/>
+  </g>
 </svg>`)}`;
 
 const EXTRAPOLATION_WINDOW_S = 12;
@@ -77,11 +90,16 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   readonly cesiumError  = signal<string | null>(null);
   readonly selectedPass  = signal<PassSelection | null>(null);
   readonly showSearch    = signal(false);
+  readonly viewMode      = signal<'3d' | '2d'>('3d');
 
   private viewer!: Viewer;
   private sampledPos!: SampledPositionProperty;
   private groundSampledPos!: SampledPositionProperty;
   private firstSample = true;
+  private nightCanvas!: HTMLCanvasElement;
+  private nightOverlayLayer: ImageryLayer | null = null;
+  private lastNightUpdate = 0;
+  private footprintRadiusM = 0;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lifecycle
@@ -95,6 +113,8 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         this.initSampledPosition();
         this.addSatelliteEntity();
         this.addGroundProjectionEntities();
+        this.initNightOverlay();
+        this.addSunEntity();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[SatelliteMap] Cesium init error:', err);
@@ -151,6 +171,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     this.viewer.clock.currentTime   = now.clone();
 
     this.viewer.scene.globe.depthTestAgainstTerrain = false;
+    this.viewer.scene.globe.enableLighting          = true;
   }
 
   private initSampledPosition(): void {
@@ -223,6 +244,20 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     });
 
     this.viewer.entities.add({
+      id: 'footprint',
+      position: this.groundSampledPos,
+      ellipse: {
+        semiMajorAxis: new CallbackProperty(() => this.footprintRadiusM, false),
+        semiMinorAxis: new CallbackProperty(() => this.footprintRadiusM, false),
+        material: Color.fromCssColorString('#38bdf812'),
+        outline: true,
+        outlineColor: Color.fromCssColorString('#38bdf855'),
+        outlineWidth: 1,
+        heightReference: HeightReference.CLAMP_TO_GROUND,
+      },
+    });
+
+    this.viewer.entities.add({
       id: 'nadir-line',
       polyline: {
         positions: new CallbackProperty(() => {
@@ -289,6 +324,11 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     if (groundEntity) {
       groundEntity.position = this.groundSampledPos as any;
     }
+    const footprintEntity = this.viewer.entities.getById('footprint');
+    if (footprintEntity) {
+      footprintEntity.position = this.groundSampledPos as any;
+    }
+    this.footprintRadiusM = 0;
   }
 
   private addSample(data: SatelliteApiResponse): void {
@@ -300,8 +340,11 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
 
     this.sampledPos.addSample(time, position);
 
-    const { lat_deg, lon_deg } = data.state.geodetic;
+    const { lat_deg, lon_deg, alt_km } = data.state.geodetic;
     this.groundSampledPos.addSample(time, Cartesian3.fromDegrees(lon_deg, lat_deg, 0));
+
+    const R = 6371;
+    this.footprintRadiusM = R * 1000 * Math.acos(Math.min(1, R / (R + alt_km)));
 
     this.viewer.clock.currentTime = JulianDate.now();
 
@@ -327,6 +370,128 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         });
       }
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Day / Night overlay
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private initNightOverlay(): void {
+    this.lastNightUpdate = Date.now();
+    this.nightCanvas = document.createElement('canvas');
+    this.nightCanvas.width  = 720;
+    this.nightCanvas.height = 360;
+    this.updateNightOverlay();
+    this.viewer.scene.postRender.addEventListener(() => {
+      const now = Date.now();
+      if (now - this.lastNightUpdate > 60_000) {
+        this.lastNightUpdate = now;
+        this.updateNightOverlay();
+      }
+    });
+  }
+
+  private async updateNightOverlay(): Promise<void> {
+    const { lat, lon } = this.getSunSubsolarPoint(new Date());
+    this.renderNightCanvas(this.nightCanvas, lat, lon);
+    const sunEntity = this.viewer.entities.getById('sun-position');
+    if (sunEntity) {
+      sunEntity.position = Cartesian3.fromDegrees(lon, lat, 0) as any;
+    }
+    const provider = await SingleTileImageryProvider.fromUrl(
+      this.nightCanvas.toDataURL('image/png'),
+      { rectangle: Rectangle.fromDegrees(-180, -90, 180, 90) },
+    );
+    if (this.nightOverlayLayer) {
+      this.viewer.imageryLayers.remove(this.nightOverlayLayer, false);
+    }
+    const layer = new ImageryLayer(provider, { alpha: 1.0 });
+    this.viewer.imageryLayers.add(layer);
+    this.nightOverlayLayer = layer;
+  }
+
+  private renderNightCanvas(canvas: HTMLCanvasElement, lat: number, lon: number): void {
+    const ctx  = canvas.getContext('2d')!;
+    const W    = canvas.width;
+    const H    = canvas.height;
+    const subLatR   = lat * (Math.PI / 180);
+    const subLonR   = lon * (Math.PI / 180);
+    const cosSubLat = Math.cos(subLatR);
+    const sinSubLat = Math.sin(subLatR);
+    const imgData = ctx.createImageData(W, H);
+    const d       = imgData.data;
+
+    for (let y = 0; y < H; y++) {
+      const latR   = Math.PI / 2 - (y / H) * Math.PI;
+      const cosLat = Math.cos(latR);
+      const sinLat = Math.sin(latR);
+      for (let x = 0; x < W; x++) {
+        const lonR = (x / W) * 2 * Math.PI - Math.PI;
+        // cosZ > 0 = day, cosZ < 0 = night; ~6° twilight band where cosZ ∈ (-0.105, 0)
+        const cosZ = sinSubLat * sinLat + cosSubLat * cosLat * Math.cos(lonR - subLonR);
+        const i = (y * W + x) * 4;
+        d[i] = 0; d[i + 1] = 0; d[i + 2] = 10;
+        if (cosZ >= 0) {
+          d[i + 3] = 0;
+        } else if (cosZ > -0.105) {
+          const t = -cosZ / 0.105;
+          d[i + 3] = Math.round(t * t * 195);
+        } else {
+          d[i + 3] = 195;
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  private getSunSubsolarPoint(date: Date): { lat: number; lon: number } {
+    const D = date.getTime() / 86_400_000 + 2_440_587.5 - 2_451_545.0;
+    const g = (357.529 + 0.98560028 * D) * (Math.PI / 180);
+    // Modulo in degrees BEFORE converting to avoid floating-point precision loss
+    // (D ~ 9600 makes raw values ~3.4M°; multiplying by π/180 first loses ~50° of accuracy)
+    const q       = ((280.459          + 0.98564736629 * D) % 360 + 360) % 360;
+    const gmstDeg = ((280.46061837     + 360.98564736629 * D) % 360 + 360) % 360;
+    const L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * (Math.PI / 180);
+    const e = (23.439 - 3.56e-7 * D) * (Math.PI / 180);
+    const lat  = Math.asin(Math.sin(e) * Math.sin(L)) * (180 / Math.PI);
+    const raDeg = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)) * (180 / Math.PI);
+    let lon = raDeg - gmstDeg;
+    while (lon >  180) lon -= 360;
+    while (lon < -180) lon += 360;
+    return { lat, lon };
+  }
+
+  private addSunEntity(): void {
+    const { lat, lon } = this.getSunSubsolarPoint(new Date());
+    this.viewer.entities.add({
+      id:   'sun-position',
+      show: false,
+      position: Cartesian3.fromDegrees(lon, lat, 0),
+      billboard: {
+        image:  SUN_ICON,
+        width:  26,
+        height: 26,
+        heightReference:          HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+    });
+  }
+
+  toggleViewMode(): void {
+    if (!this.viewer) return;
+    const next = this.viewMode() === '3d' ? '2d' : '3d';
+    this.viewMode.set(next);
+    this.ngZone.runOutsideAngular(() => {
+      const nadirLine = this.viewer.entities.getById('nadir-line');
+      if (nadirLine) nadirLine.show = next === '3d';
+      const sunEntity = this.viewer.entities.getById('sun-position');
+      if (sunEntity) sunEntity.show = next === '2d';
+      if (next === '2d') {
+        this.viewer.scene.morphTo2D(1.0);
+      } else {
+        this.viewer.scene.morphTo3D(1.0);
+      }
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────

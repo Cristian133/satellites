@@ -81,6 +81,14 @@
       {{ tracking() ? '🔒 Siguiendo satélite' : '🖱 Cámara libre' }}
     </button>
 
+    <button
+      class="hud__cam-btn"
+      [class.hud__cam-btn--active]="viewMode() === '2d'"
+      (click)="toggleViewMode()"
+    >
+      {{ viewMode() === '3d' ? '🗺 Vista 2D' : '🌍 Vista 3D' }}
+    </button>
+
   </aside>
 
   <app-passes-panel
