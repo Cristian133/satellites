@@ -1,6 +1,6 @@
 "use strict";
 
-import { julianDate, gmst82, rot3 } from "./coords";
+import { julianDate, gmst82, rot3 } from "./coords.js";
 
 const RAD              = Math.PI / 180;
 const DEG              = 180 / Math.PI;

@@ -5,10 +5,10 @@ import { bindings }                               from "@wasmer/sgp4";
 import { Elements, Constants }                    from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
 import type { Result, Error as SgpError }         from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
 import type { Sgp4 }                              from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
-import { temeToGeodetic }                         from "./coords";
-import { openDatabase, getTleByNoradId, getStats, searchSatellites } from "./db";
-import { syncAll, startCronJob }                  from "./fetcher";
-import { findPasses }                             from "./passes";
+import { temeToGeodetic }                         from "./coords.js";
+import { openDatabase, getTleByNoradId, getStats, searchSatellites } from "./db.js";
+import { syncAll, startCronJob }                  from "./fetcher.js";
+import { findPasses }                             from "./passes.js";
 
 const PORT = process.env["PORT"] ?? 3000;
 

@@ -3,10 +3,10 @@
 import type Database                              from "better-sqlite3";
 import { Elements, Constants }                    from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
 import type { Sgp4, Result, Error as SgpError }   from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
-import { getTleByNoradId }                        from "./db";
-import { temeToEcef }                             from "./coords";
-import { sunDirectionEcef, isInEarthShadow, sunElevationDeg } from "./sun";
-import { stdMagnitude, apparentMagnitude }        from "./magnitude";
+import { getTleByNoradId }                        from "./db.js";
+import { temeToEcef }                             from "./coords.js";
+import { sunDirectionEcef, isInEarthShadow, sunElevationDeg } from "./sun.js";
+import { stdMagnitude, apparentMagnitude }        from "./magnitude.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

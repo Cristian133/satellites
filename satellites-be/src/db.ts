@@ -3,7 +3,7 @@
 import Database from "better-sqlite3";
 import path     from "path";
 import fs       from "fs";
-import type { TleRecord } from "./tle-parser";
+import type { TleRecord } from "./tle-parser.js";
 
 const DB_PATH =
   process.env["DB_PATH"] ??

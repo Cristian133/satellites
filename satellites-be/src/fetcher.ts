@@ -2,8 +2,8 @@
 
 import cron                                        from "node-cron";
 import type Database                               from "better-sqlite3";
-import { parseCatalog }                            from "./tle-parser";
-import { upsertTles, startSyncLog, finishSyncLog } from "./db";
+import { parseCatalog }                            from "./tle-parser.js";
+import { upsertTles, startSyncLog, finishSyncLog } from "./db.js";
 
 interface Source {
   name: string;

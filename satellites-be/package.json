@@ -6,15 +6,18 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "demo-agents": "tsx src/agents-demo.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/genai": "^2.5.0",
     "@wasmer/sgp4": "file:vendor/wasmer-sgp4",
     "better-sqlite3": "^12.9.0",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "node-cron": "^4.2.1"
   },
