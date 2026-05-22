@@ -62,8 +62,8 @@
               },
               {
                 "type": "anyComponentStyle",
-                "maximumWarning": "6kb",
-                "maximumError": "10kb"
+                "maximumWarning": "12kb",
+                "maximumError": "24kb"
               }
             ],
             "allowedCommonJsDependencies": [
@@ -87,8 +87,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "6kb",
-                  "maximumError": "10kb"
+                  "maximumWarning": "12kb",
+                  "maximumError": "24kb"
                 }
               ],
               "outputHashing": "all"

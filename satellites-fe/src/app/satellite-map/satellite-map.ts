@@ -46,6 +46,8 @@ import { SatelliteService } from '../satellite.service';
 import { PositionState, SatelliteApiResponse, PassSelection } from '../satellite.model';
 import { PassesPanel } from '../passes-panel/passes-panel';
 import { SatelliteSearch } from '../satellite-search/satellite-search';
+import { PerformanceOverlay } from '../performance-overlay/performance-overlay';
+import { SatelliteRadar } from '../satellite-radar/satellite-radar';
 
 const SATELLITE_ICON = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
@@ -71,7 +73,7 @@ const EXTRAPOLATION_WINDOW_S = 12;
 
 @Component({
   selector: 'app-satellite-map',
-  imports: [DecimalPipe, DatePipe, FormsModule, PassesPanel, SatelliteSearch],
+  imports: [DecimalPipe, DatePipe, FormsModule, PassesPanel, SatelliteSearch, PerformanceOverlay, SatelliteRadar],
   templateUrl: './satellite-map.html',
   styleUrl: './satellite-map.scss',
 })
@@ -89,8 +91,13 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   readonly tracking     = signal(true);
   readonly cesiumError  = signal<string | null>(null);
   readonly selectedPass  = signal<PassSelection | null>(null);
+  readonly radarTab      = signal<'radar' | 'details'>('radar');
   readonly showSearch    = signal(false);
   readonly viewMode      = signal<'3d' | '2d'>('3d');
+
+  get viewerInstance(): Viewer {
+    return this.viewer;
+  }
 
   private viewer!: Viewer;
   private sampledPos!: SampledPositionProperty;
@@ -98,7 +105,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   private firstSample = true;
   private nightCanvas!: HTMLCanvasElement;
   private nightOverlayLayer: ImageryLayer | null = null;
-  private lastNightUpdate = 0;
+  private lastNightJulianDate?: JulianDate;
   private footprintRadiusM = 0;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -377,27 +384,27 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────────────
 
   private initNightOverlay(): void {
-    this.lastNightUpdate = Date.now();
+    this.lastNightJulianDate = this.viewer.clock.currentTime.clone();
     this.nightCanvas = document.createElement('canvas');
     this.nightCanvas.width  = 720;
     this.nightCanvas.height = 360;
     this.updateNightOverlay();
     this.viewer.scene.postRender.addEventListener(() => {
-      const now = Date.now();
-      if (now - this.lastNightUpdate > 60_000) {
-        this.lastNightUpdate = now;
+      if (!this.lastNightJulianDate) return;
+      const simDiff = Math.abs(JulianDate.secondsDifference(this.viewer.clock.currentTime, this.lastNightJulianDate));
+      if (simDiff > 60 || !this.nightOverlayLayer) {
+        this.lastNightJulianDate = this.viewer.clock.currentTime.clone();
         this.updateNightOverlay();
       }
     });
   }
 
   private async updateNightOverlay(): Promise<void> {
-    const { lat, lon } = this.getSunSubsolarPoint(new Date());
+    const simTime = this.viewer.clock.currentTime;
+    const date = JulianDate.toDate(simTime);
+    const { lat, lon } = this.getSunSubsolarPoint(date);
     this.renderNightCanvas(this.nightCanvas, lat, lon);
-    const sunEntity = this.viewer.entities.getById('sun-position');
-    if (sunEntity) {
-      sunEntity.position = Cartesian3.fromDegrees(lon, lat, 0) as any;
-    }
+    
     const provider = await SingleTileImageryProvider.fromUrl(
       this.nightCanvas.toDataURL('image/png'),
       { rectangle: Rectangle.fromDegrees(-180, -90, 180, 90) },
@@ -462,11 +469,15 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   }
 
   private addSunEntity(): void {
-    const { lat, lon } = this.getSunSubsolarPoint(new Date());
     this.viewer.entities.add({
       id:   'sun-position',
       show: false,
-      position: Cartesian3.fromDegrees(lon, lat, 0),
+      position: new CallbackProperty((time, result) => {
+        if (!time) return result ?? Cartesian3.ZERO;
+        const date = JulianDate.toDate(time);
+        const { lat, lon } = this.getSunSubsolarPoint(date);
+        return Cartesian3.fromDegrees(lon, lat, 0, this.viewer.scene.globe.ellipsoid, result);
+      }, false) as any,
       billboard: {
         image:  SUN_ICON,
         width:  26,

@@ -7,6 +7,7 @@ import { getTleByNoradId }                        from "./db.js";
 import { temeToEcef }                             from "./coords.js";
 import { sunDirectionEcef, isInEarthShadow, sunElevationDeg } from "./sun.js";
 import { stdMagnitude, apparentMagnitude }        from "./magnitude.js";
+import { getCelestialPositions, type CelestialPosition } from "./celestial.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,8 @@ export interface SatellitePass {
   maxElevation_deg: number;
   duration_s:       number;
   magnitude:        number | null;  // apparent visual mag at peak; null if in Earth shadow
+  track:            PassPoint[];
+  celestialBodies:  CelestialPosition[];
 }
 
 export interface FindPassesOptions {
@@ -205,14 +208,51 @@ export function findPasses(
       ? null
       : apparentMagnitude(peak.satEcef, obsEcef, sunDir, stdMagnitude(noradId));
 
+    const track: PassPoint[] = [];
+    const durationMs = setMs - riseMs;
+    // Muestras de la trayectoria cada ~10-30s
+    const trackStep = Math.max(10000, Math.min(30000, Math.round(durationMs / 25)));
+    for (let tMs = riseMs; tMs <= setMs; tMs += trackStep) {
+      const s = sampleAt(tMs);
+      if (s) {
+        track.push({
+          time: new Date(tMs).toISOString(),
+          az_deg: r1(s.az_deg),
+          el_deg: r1(s.el_deg),
+        });
+      }
+    }
+    const lastPoint = track[track.length - 1];
+    const setTimeIso = new Date(setMs).toISOString();
+    if (!lastPoint || lastPoint.time !== setTimeIso) {
+      const s = sampleAt(setMs);
+      if (s) {
+        track.push({
+          time: setTimeIso,
+          az_deg: r1(s.az_deg),
+          el_deg: r1(s.el_deg),
+        });
+      }
+    }
+
+    const peakDate = new Date(peak.ms);
+    const celestialBodies = getCelestialPositions(
+      peakDate,
+      observer.lat_deg,
+      observer.lon_deg,
+      observer.alt_km
+    );
+
     passes.push({
       rise:             { time: new Date(riseMs).toISOString(), az_deg: r1(riseSample.az_deg), el_deg: r1(riseSample.el_deg) },
       peak:             { time: new Date(peak.ms).toISOString(), az_deg: r1(peak.az_deg),      el_deg: r1(peak.el_deg)      },
       set:              { time: new Date(setMs).toISOString(),   az_deg: r1(setSample.az_deg),  el_deg: r1(setSample.el_deg) },
       visible,
       maxElevation_deg: r1(peak.el_deg),
-      duration_s:       Math.round((setMs - riseMs) / 1000),
+      duration_s:       Math.round(durationMs / 1000),
       magnitude,
+      track,
+      celestialBodies,
     });
   }
 

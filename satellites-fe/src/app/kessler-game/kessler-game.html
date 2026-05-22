@@ -1,0 +1,349 @@
+<!-- Fullscreen Cesium Canvas -->
+<div #cesiumContainer class="cesium-host"></div>
+
+<!-- HUD principal del Juego (Layout Dual) -->
+<div class="kessler-hud">
+  
+  <!-- PANEL IZQUIERDO: Control y Decisiones -->
+  <aside class="game-control">
+    <header class="game-control__header">
+      <h1 class="game-control__title">KESSLER SYNDROME SIMULATOR</h1>
+      <span class="game-control__subtitle">Tragedia de los Comunes y Teoría de Juegos en LEO</span>
+    </header>
+
+    <!-- ESTADO 1: Configuración de partida (Setup) -->
+    @if (gameMode() === 'setup') {
+      <section class="setup-section animate-fade">
+        <h2 class="section-title">CONFIGURACIÓN DEL TRATADO</h2>
+        
+        <div class="control-group">
+          <label for="setup-duration">Duración del Tratado Internacional</label>
+          <div class="preset-buttons">
+            <button class="preset-btn" [class.preset-btn--active]="targetYears() === 10" (click)="setPreset('short')">10 Años (Corto)</button>
+            <button class="preset-btn" [class.preset-btn--active]="targetYears() === 20" (click)="setPreset('medium')">20 Años (Estándar)</button>
+            <button class="preset-btn" [class.preset-btn--active]="targetYears() === 50" (click)="setPreset('sandbox')">50 Años (Sandbox)</button>
+          </div>
+          <span class="field-hint">Establece el horizonte de planificación económica orbital.</span>
+        </div>
+
+        <div class="control-group">
+          <label for="setup-debris">Densidad Inicial de Basura Espacial</label>
+          <div class="slider-container">
+            <input
+              id="setup-debris"
+              type="range"
+              min="200"
+              max="2000"
+              step="100"
+              [ngModel]="baseDebris()"
+              (ngModelChange)="baseDebris.set($event)"
+            />
+            <span class="slider-val">{{ baseDebris() | number:'1.0-0' }} piezas</span>
+          </div>
+          <span class="field-hint">Densidad inicial de escombros catalogados en Órbita Baja (LEO).</span>
+        </div>
+
+        <button class="action-btn action-btn--primary" (click)="startGame()">
+          INICIAR SIMULACIÓN ORBITAL
+        </button>
+      </section>
+    }
+
+    <!-- ESTADO 2: Bucle del juego en ejecución -->
+    @if (gameMode() === 'running') {
+      <section class="play-section animate-fade">
+        
+        <!-- Marcador Rápido del Año y Estado de Órbita -->
+        <div class="orbit-status">
+          <div class="status-card">
+            <span class="status-card__label">AÑO ACTUAL</span>
+            <span class="status-card__val">{{ currentYear() }}</span>
+            <span class="status-card__sub">Turno {{ currentYear() - startYear }} / {{ targetYears() }}</span>
+          </div>
+          <div class="status-card" [class.status-card--danger]="debrisCount() >= 2000">
+            <span class="status-card__label">BASURA ESPACIAL</span>
+            <span class="status-card__val">{{ debrisCount() | number:'1.0-0' }}</span>
+            <span class="status-card__sub">Límite crítico: 3,000</span>
+          </div>
+          <div class="status-card" [class.status-card--danger]="collisionRisk() >= 0.2">
+            <span class="status-card__label">RIESGO ANUAL COLISIÓN</span>
+            <span class="status-card__val">{{ collisionRisk() | percent:'1.1-1' }}</span>
+            <span class="status-card__sub">Por satélite activo</span>
+          </div>
+        </div>
+
+        <!-- Regulador e Impuestos -->
+        <div class="control-card control-card--policy">
+          <h3 class="card-title">POLÍTICA RECOMIENDA: REGULACIÓN ONU</h3>
+          <div class="control-group">
+            <label for="policy-tax">Tasa / Impuesto de Mitigación</label>
+            <div class="slider-container">
+              <input
+                id="policy-tax"
+                type="range"
+                min="0"
+                max="60"
+                step="10"
+                [ngModel]="regulatorTax()"
+                (ngModelChange)="regulatorTax.set($event)"
+              />
+              <span class="slider-val">{{ regulatorTax() | currency:'USD':'symbol':'1.0-0' }}k</span>
+            </div>
+            <span class="field-hint">Penalización regulatoria por satélite egoísta (sin desorbitador). Altera la matriz de teoría de juegos.</span>
+          </div>
+        </div>
+
+        <!-- Decisiones del Operador -->
+        <div class="control-card">
+          <h3 class="card-title">PLAN TÁCTICO: ALPHANET (TÚ)</h3>
+          
+          <div class="control-group">
+            <label for="dec-launch">Satélites a Lanzar en el Año</label>
+            <div class="slider-container">
+              <input
+                id="dec-launch"
+                type="range"
+                min="0"
+                max="300"
+                step="50"
+                [ngModel]="userLaunchVolume()"
+                (ngModelChange)="userLaunchVolume.set($event)"
+              />
+              <span class="slider-val">{{ userLaunchVolume() }} satélites</span>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label for="dec-eco">Porcentaje Sostenible (Tecnología Eco)</label>
+            <div class="slider-container">
+              <input
+                id="dec-eco"
+                type="range"
+                min="0"
+                max="100"
+                step="10"
+                [ngModel]="userEcoPercentage()"
+                (ngModelChange)="userEcoPercentage.set($event)"
+              />
+              <span class="slider-val" [style.color]="userEcoPercentage() >= 60 ? '#00ff7f' : '#ff4747'">{{ userEcoPercentage() }}%</span>
+            </div>
+            <span class="field-hint">
+              @if (userEcoPercentage() >= 60) {
+                🚀 Sostenible: \$130k c/u. Desorbita automático (1% fallo).
+              } @else {
+                ⚠️ Barato: \$100k c/u (+ multa). Creará escombros al fallar (5% fallo).
+              }
+            </span>
+          </div>
+
+          <div class="control-group">
+            <label for="dec-clean">Inversión en Limpieza Activa (ADR)</label>
+            <div class="slider-container">
+              <input
+                id="dec-clean"
+                type="range"
+                min="0"
+                max="15"
+                step="5"
+                [ngModel]="userCleanBudget()"
+                (ngModelChange)="userCleanBudget.set($event)"
+              />
+              <span class="slider-val">{{ userCleanBudget() | currency:'USD':'symbol':'1.0-0' }}M</span>
+            </div>
+            <span class="field-hint">Dinero invertido en retirar basura de todos. Cuesta \$10M limpiar 50 piezas.</span>
+          </div>
+        </div>
+
+        <!-- Botones de Acción de Avance -->
+        <div class="button-row">
+          <button class="action-btn action-btn--primary action-btn--large" (click)="nextTurn()">
+            EJECUTAR AÑO {{ currentYear() }} ➔
+          </button>
+          <button class="action-btn action-btn--secondary" (click)="resetGame()">
+            Reiniciar
+          </button>
+        </div>
+
+      </section>
+    }
+
+    <!-- ESTADO 3: Fin de Partida (Derrota / Victoria) -->
+    @if (gameMode() === 'gameover' || gameMode() === 'victory') {
+      <section class="gameover-section animate-fade">
+        <header class="gameover-header">
+          @if (gameMode() === 'victory') {
+            <span class="gameover-icon">🏆</span>
+            <h2 class="gameover-title text-success">TRATADO FINALIZADO</h2>
+          } @else {
+            <span class="gameover-icon">☠</span>
+            <h2 class="gameover-title text-danger">COLAPSO DE KESSLER</h2>
+          }
+        </header>
+
+        <div class="gameover-results">
+          <h3 class="results-subtitle">Marcador Financiero Acumulado:</h3>
+          <div class="results-grid">
+            <div class="results-row" style="border-left: 4px solid #00ff7f;">
+              <span>AlphaNet (Tú):</span>
+              <strong [class.text-success]="alpha().cumulativeProfit >= 0" [class.text-danger]="alpha().cumulativeProfit < 0">
+                {{ alpha().cumulativeProfit | currency:'USD':'symbol':'1.0-0' }}
+              </strong>
+            </div>
+            <div class="results-row" style="border-left: 4px solid #00ffff;">
+              <span>BetaNet (IA Reactiva):</span>
+              <strong [class.text-success]="beta().cumulativeProfit >= 0" [class.text-danger]="beta().cumulativeProfit < 0">
+                {{ beta().cumulativeProfit | currency:'USD':'symbol':'1.0-0' }}
+              </strong>
+            </div>
+            <div class="results-row" style="border-left: 4px solid #1e90ff;">
+              <span>GammaNet (IA Egoísta):</span>
+              <strong [class.text-success]="gamma().cumulativeProfit >= 0" [class.text-danger]="gamma().cumulativeProfit < 0">
+                {{ gamma().cumulativeProfit | currency:'USD':'symbol':'1.0-0' }}
+              </strong>
+            </div>
+          </div>
+
+          <div class="debris-summary">
+            <span>Escombros espaciales finales: <strong>{{ debrisCount() }}</strong> piezas</span>
+          </div>
+        </div>
+
+        <button class="action-btn action-btn--primary" (click)="resetGame()">
+          VOLVER A INTENTAR
+        </button>
+      </section>
+    }
+
+  </aside>
+
+  <!-- PANEL DERECHO: Análisis Didáctico de Teoría de Juegos y Finanzas -->
+  <main class="game-analytics">
+    
+    <!-- Sección de Finanzas Actuales -->
+    @if (gameMode() !== 'setup') {
+      <section class="analytics-card">
+        <h3 class="card-title">ESTADO DE OPERADORES</h3>
+        <div class="players-table">
+          <div class="players-row header-row">
+            <span>Operador</span>
+            <span>Satélites Activos</span>
+            <span>Ganancia Turno Anterior</span>
+            <span>Ganancia Acumulada</span>
+          </div>
+          
+          <div class="players-row">
+            <span class="player-label" style="--col: #00ff7f;">● AlphaNet (Tú)</span>
+            <span>{{ alpha().activeSatellites }}</span>
+            <span [class.text-success]="alpha().lastTurnProfit >= 0" [class.text-danger]="alpha().lastTurnProfit < 0">
+              {{ alpha().lastTurnProfit / 1000000 | number:'1.2-2' }}M
+            </span>
+            <span [class.text-success]="alpha().cumulativeProfit >= 0" [class.text-danger]="alpha().cumulativeProfit < 0">
+              {{ alpha().cumulativeProfit / 1000000 | number:'1.2-2' }}M
+            </span>
+          </div>
+
+          <div class="players-row">
+            <span class="player-label" style="--col: #00ffff;">● BetaNet (IA Reactiva)</span>
+            <span>{{ beta().activeSatellites }}</span>
+            <span [class.text-success]="beta().lastTurnProfit >= 0" [class.text-danger]="beta().lastTurnProfit < 0">
+              {{ beta().lastTurnProfit / 1000000 | number:'1.2-2' }}M
+            </span>
+            <span [class.text-success]="beta().cumulativeProfit >= 0" [class.text-danger]="beta().cumulativeProfit < 0">
+              {{ beta().cumulativeProfit / 1000000 | number:'1.2-2' }}M
+            </span>
+          </div>
+
+          <div class="players-row">
+            <span class="player-label" style="--col: #1e90ff;">● GammaNet (IA Egoísta)</span>
+            <span>{{ gamma().activeSatellites }}</span>
+            <span [class.text-success]="gamma().lastTurnProfit >= 0" [class.text-danger]="gamma().lastTurnProfit < 0">
+              {{ gamma().lastTurnProfit / 1000000 | number:'1.2-2' }}M
+            </span>
+            <span [class.text-success]="gamma().cumulativeProfit >= 0" [class.text-danger]="gamma().cumulativeProfit < 0">
+              {{ gamma().cumulativeProfit / 1000000 | number:'1.2-2' }}M
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- MATRIZ DE PAGOS DINÁMICA (Didáctica de Teoría de Juegos) -->
+      <section class="analytics-card">
+        <div class="card-header-row">
+          <h3 class="card-title">MATRIZ DE PAGOS DIDÁCTICA (Dilema Tú vs BetaNet)</h3>
+          <div class="matrix-legend">
+            <span>(Tus millones, Competidor millones)</span>
+          </div>
+        </div>
+
+        <div class="matrix-wrapper">
+          <div class="matrix-grid">
+            
+            <!-- Fila cabecera -->
+            <div class="matrix-cell label-cell"></div>
+            <div class="matrix-cell label-cell col-label">Competidor Sostenible</div>
+            <div class="matrix-cell label-cell col-label">Competidor Egoísta</div>
+
+            <!-- Fila 1: Tú Eco -->
+            <div class="matrix-cell label-cell row-label">Tú Sostenible (Eco)</div>
+            <div class="matrix-cell payoff-cell" [class.payoff-cell--pareto]="true" title="Óptimo de Pareto: Lo mejor para el recurso común">
+              <span class="payoff-badge payoff-badge--pareto">ÓPTIMO PARETO</span>
+              <span class="payoff-val text-success">{{ payoffMatrix().ecoEco.you | number:'1.1-1' }}M</span>
+              <span class="payoff-val text-cyan">{{ payoffMatrix().ecoEco.comp | number:'1.1-1' }}M</span>
+            </div>
+            <div class="matrix-cell payoff-cell">
+              <span class="payoff-val text-success">{{ payoffMatrix().ecoCheap.you | number:'1.1-1' }}M</span>
+              <span class="payoff-val text-cyan">{{ payoffMatrix().ecoCheap.comp | number:'1.1-1' }}M</span>
+            </div>
+
+            <!-- Fila 2: Tú Cheap -->
+            <div class="matrix-cell label-cell row-label">Tú Egoísta (Barato)</div>
+            <div class="matrix-cell payoff-cell">
+              <span class="payoff-val text-success">{{ payoffMatrix().cheapEco.you | number:'1.1-1' }}M</span>
+              <span class="payoff-val text-cyan">{{ payoffMatrix().cheapEco.comp | number:'1.1-1' }}M</span>
+            </div>
+            <div class="matrix-cell payoff-cell" [class.payoff-cell--nash]="payoffMatrix().nash === 'Egoísta / Egoísta'" title="Equilibrio de Nash: Donde conducen los incentivos no cooperativos">
+              @if (payoffMatrix().nash === 'Egoísta / Egoísta') {
+                <span class="payoff-badge payoff-badge--nash">EQUILIBRIO NASH</span>
+              }
+              <span class="payoff-val text-success">{{ payoffMatrix().cheapCheap.you | number:'1.1-1' }}M</span>
+              <span class="payoff-val text-cyan">{{ payoffMatrix().cheapCheap.comp | number:'1.1-1' }}M</span>
+            </div>
+
+          </div>
+        </div>
+
+        <footer class="matrix-analysis">
+          <div class="analysis-stat">
+            <span>Equilibrio de Nash Teórico:</span>
+            <strong [class.text-danger]="payoffMatrix().nash === 'Egoísta / Egoísta'" [class.text-success]="payoffMatrix().nash === 'Sostenible / Sostenible'">
+              {{ payoffMatrix().nash }}
+            </strong>
+          </div>
+          <p class="analysis-text">
+            @if (payoffMatrix().nash === 'Egoísta / Egoísta') {
+              ⚠️ Al no haber regulación, los incentivos individuales obligan a ambos a jugar <strong>Egoísta</strong>. Esto da más ganancias inmediatas pero llena la órbita de basura y destruye los satélites. ¡Eleva el <strong>Impuesto Regulador</strong> para forzar un equilibrio Sostenible!
+            } @else if (payoffMatrix().nash === 'Sostenible / Sostenible') {
+              💚 ¡Excelente! Con el nivel actual de regulación, la opción Sostenible es más rentable. El equilibrio de Nash se alinea con la salud orbital común.
+            } @else {
+              El mercado orbital se encuentra inestable debido a riesgos mixtos. ¡Establece una política clara!
+            }
+          </p>
+        </footer>
+      </section>
+    }
+
+    <!-- CONSOLA DE REGISTROS ORBITALES (Logs) -->
+    <section class="analytics-card logs-card">
+      <h3 class="card-title">CONSOLA DE EVENTOS ESPACIALES</h3>
+      <div class="logs-container">
+        @for (log of gameLogs(); track $index) {
+          <div class="log-line" [class.log-line--header]="log.startsWith('===')" [class.log-line--danger]="log.includes('⚠') || log.includes('💥') || log.includes('☠')" [class.log-line--success]="log.includes('🏆') || log.includes('✓')">
+            {{ log }}
+          </div>
+        }
+      </div>
+    </section>
+
+  </main>
+
+</div>

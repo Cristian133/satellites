@@ -45,6 +45,13 @@ export interface PassPoint {
   el_deg: number;
 }
 
+export interface CelestialPosition {
+  name: string;
+  az_deg: number;
+  el_deg: number;
+  icon: string;
+}
+
 export interface SatellitePass {
   rise:             PassPoint;
   peak:             PassPoint;
@@ -53,6 +60,8 @@ export interface SatellitePass {
   maxElevation_deg: number;
   duration_s:       number;
   magnitude:        number | null;
+  track:            PassPoint[];
+  celestialBodies:  CelestialPosition[];
 }
 
 export interface FindPassesResult {
