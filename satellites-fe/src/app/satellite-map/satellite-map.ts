@@ -39,6 +39,7 @@ import {
   SampledPositionProperty,
   SingleTileImageryProvider,
   TileMapServiceImageryProvider,
+  UrlTemplateImageryProvider,
   Viewer,
 } from 'cesium';
 
@@ -148,13 +149,20 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
 
   private initViewer(): void {
     this.viewer = new Viewer(this.containerRef.nativeElement, {
-      // Use the Natural Earth II tiles bundled inside CesiumJS itself.
-      // No network request, no token, no async race condition.
-      baseLayer: ImageryLayer.fromProviderAsync(
-        TileMapServiceImageryProvider.fromUrl(
-          buildModuleUrl('Assets/Textures/NaturalEarthII/'),
-          { fileExtension: 'jpg' },
-        ),
+      // Use CartoDB Dark Matter high-resolution online maps to provide stunning visual clarity
+      // and match the premium dark sci-fi/orbital-systems design aesthetic perfectly.
+      baseLayer: new ImageryLayer(
+        new UrlTemplateImageryProvider({
+          url: 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+          credit: '© OpenStreetMap contributors, © CartoDB',
+          minimumLevel: 0,
+          maximumLevel: 18,
+        }),
+        {
+          contrast: 1.5,      // Eleva el contraste para diferenciar drásticamente el mar y la tierra
+          saturation: 1.7,    // Satura los colores: el mar se vuelve azul profundo y la tierra adquiere tonos amarillos/verdes intensos
+          brightness: 0.95,   // Ajusta sutilmente el brillo para mejorar la profundidad
+        }
       ),
       // terrainProvider defaults to EllipsoidTerrainProvider — no need to set it
       baseLayerPicker:       false,
@@ -203,6 +211,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     this.viewer.entities.add({
       id:       'satellite',
       position: this.sampledPos,
+      viewFrom: new Cartesian3(-3000000, -3000000, 1500000), // Zoom out default camera offset (meters: -3000km EN, 1500km U)
       billboard: {
         image:  SATELLITE_ICON,
         width:  36,
