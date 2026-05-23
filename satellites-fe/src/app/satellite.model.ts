@@ -76,6 +76,7 @@ export interface SatelliteSummary {
   groupName:   string;
   inclination: number;
   periodMin:   number;
+  country?:    string;
 }
 
 export interface PassSelection {

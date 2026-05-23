@@ -1,30 +1,20 @@
 <div class="app-container">
-  
+
   <!-- Sleek Top Header Navigation Bar (Glassmorphic) -->
   <header class="app-header">
     <div class="app-header__logo">
       <span class="app-header__icon">🪐</span>
       <span class="app-header__logo-text">ORBITAL SYSTEMS</span>
     </div>
-    
+
     <nav class="app-header__nav" aria-label="Navegación principal">
-      <button 
-        class="nav-btn" 
-        [class.nav-btn--active]="currentMode() === 'tracker'"
-        (click)="currentMode.set('tracker')"
-        aria-selected="currentMode() === 'tracker'"
-        role="tab"
-      >
+      <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'tracker'" (click)="currentMode.set('tracker')"
+        aria-selected="currentMode() === 'tracker'" role="tab">
         🛰️ Rastreador Real-Time
       </button>
-      <button 
-        class="nav-btn" 
-        [class.nav-btn--active]="currentMode() === 'kessler'"
-        (click)="currentMode.set('kessler')"
-        aria-selected="currentMode() === 'kessler'"
-        role="tab"
-      >
-        💥 Simulador Kessler (Teoría de Juegos)
+      <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'kessler'" (click)="currentMode.set('kessler')"
+        aria-selected="currentMode() === 'kessler'" role="tab">
+        💥 Simulador Kessler
       </button>
     </nav>
   </header>
@@ -32,9 +22,9 @@
   <!-- Content area -->
   <main class="app-main">
     @if (currentMode() === 'tracker') {
-      <app-satellite-map />
+    <app-satellite-map />
     } @else {
-      <app-kessler-game />
+    <app-kessler-game />
     }
   </main>
 </div>

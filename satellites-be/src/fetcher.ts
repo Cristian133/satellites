@@ -21,6 +21,14 @@ const SOURCES: Source[] = [
   { name: "Visually Observable", url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle"   },
   { name: "Weather",             url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle"  },
   { name: "Amateur Radio",       url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle"  },
+  { name: "Starlink",            url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle" },
+  { name: "OneWeb",              url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle"   },
+  { name: "GPS Operational",     url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle" },
+  { name: "GLONASS Operational", url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=glo-ops&FORMAT=tle" },
+  { name: "Galileo",             url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle" },
+  { name: "BeiDou",              url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=beidou&FORMAT=tle"  },
+  { name: "Science",             url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle" },
+  { name: "Geodetic",            url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=geodetic&FORMAT=tle"},
 ];
 
 // ─── HTTP fetch with timeout ──────────────────────────────────────────────────
@@ -81,10 +89,66 @@ async function syncSource(db: Database.Database, source: Source): Promise<SyncRe
   return { inserted, updated, parseErrors: parseErrors.length };
 }
 
+// ─── Sync SATCAT (Country mappings) ──────────────────────────────────────────
+
+export async function syncSatcat(db: Database.Database): Promise<void> {
+  console.log("[sync] Syncing SATCAT country registry...");
+  try {
+    const text = await fetchText("https://celestrak.org/pub/satcat.csv");
+    const lines = text.split(/\r?\n/);
+    if (lines.length <= 1) return;
+
+    const headers = lines[0].split(",");
+    const noradIdx = headers.indexOf("NORAD_CAT_ID");
+    const ownerIdx = headers.indexOf("OWNER");
+
+    if (noradIdx === -1 || ownerIdx === -1) {
+      console.error("[sync] SATCAT CSV columns not found in header:", lines[0]);
+      return;
+    }
+
+    const insert = db.prepare("INSERT OR REPLACE INTO satcat_countries (norad_id, country) VALUES (?, ?)");
+
+    const run = db.transaction((rows: [number, string][]) => {
+      for (const [noradId, owner] of rows) {
+        insert.run(noradId, owner);
+      }
+    });
+
+    const batch: [number, string][] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+      const noradStr = cols[noradIdx]?.replace(/"/g, "").trim();
+      const ownerStr = cols[ownerIdx]?.replace(/"/g, "").trim();
+      if (noradStr && ownerStr) {
+        const noradId = parseInt(noradStr, 10);
+        if (!isNaN(noradId)) {
+          batch.push([noradId, ownerStr]);
+        }
+      }
+    }
+
+    if (batch.length > 0) {
+      run(batch);
+      console.log(`[sync] Successfully synced ${batch.length} SATCAT entries.`);
+    }
+  } catch (err) {
+    console.error("[sync] SATCAT sync failed:", err);
+  }
+}
+
 // ─── Full sync (all sources in parallel) ─────────────────────────────────────
 
 export async function syncAll(db: Database.Database): Promise<SyncResult> {
   console.log(`[sync] Starting full catalog sync (${SOURCES.length} sources)`);
+
+  // First sync the SATCAT country mappings
+  await syncSatcat(db).catch((err: unknown) => {
+    console.error("[sync] SATCAT sync failed:", err);
+  });
 
   const results = await Promise.all(SOURCES.map((source) => syncSource(db, source)));
 

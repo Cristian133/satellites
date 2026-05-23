@@ -75,6 +75,10 @@
               "bitmap-sdf",
               "grapheme-splitter",
               "nosleep.js"
+            ],
+            "externalDependencies": [
+              "node:module",
+              "node:worker_threads"
             ]
           },
           "configurations": {

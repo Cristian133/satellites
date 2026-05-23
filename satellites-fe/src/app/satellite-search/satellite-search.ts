@@ -21,7 +21,73 @@ const GROUP_META: Record<string, { label: string; icon: string }> = {
   'Visually Observable': { label: 'Observables',           icon: '🔭' },
   'Weather':             { label: 'Meteorológicos',        icon: '🌦' },
   'Amateur Radio':       { label: 'Radio Amateur',         icon: '📡' },
+  'Starlink':            { label: 'Starlink',              icon: '✨' },
+  'OneWeb':              { label: 'OneWeb',                icon: '🌐' },
+  'GPS Operational':     { label: 'GPS Operacional',       icon: '🛰' },
+  'GLONASS Operational': { label: 'GLONASS Operacional',   icon: '🛰' },
+  'Galileo':             { label: 'Galileo',               icon: '🛰' },
+  'BeiDou':              { label: 'BeiDou',                icon: '🛰' },
+  'Science':             { label: 'Científicos',           icon: '🔬' },
+  'Geodetic':            { label: 'Geodésicos',            icon: '📐' },
   'Other':               { label: 'Otros',                 icon: '🛸' },
+};
+
+const COUNTRY_INFO: Record<string, { name: string; flag: string }> = {
+  'US':   { name: 'Estados Unidos', flag: '🇺🇸' },
+  'USA':  { name: 'Estados Unidos', flag: '🇺🇸' },
+  'CIS':  { name: 'Rusia (CEI)', flag: '🇷🇺' },
+  'RUS':  { name: 'Rusia', flag: '🇷🇺' },
+  'PRC':  { name: 'China', flag: '🇨🇳' },
+  'CHN':  { name: 'China', flag: '🇨🇳' },
+  'JPN':  { name: 'Japón', flag: '🇯🇵' },
+  'IND':  { name: 'India', flag: '🇮🇳' },
+  'ESA':  { name: 'Agencia Espacial Europea', flag: '🇪🇺' },
+  'FR':   { name: 'Francia', flag: '🇫🇷' },
+  'FRA':  { name: 'Francia', flag: '🇫🇷' },
+  'GER':  { name: 'Alemania', flag: '🇩🇪' },
+  'UK':   { name: 'Reino Unido', flag: '🇬🇧' },
+  'CA':   { name: 'Canadá', flag: '🇨🇦' },
+  'CAN':  { name: 'Canadá', flag: '🇨🇦' },
+  'ARGN': { name: 'Argentina', flag: '🇦🇷' },
+  'ARG':  { name: 'Argentina', flag: '🇦🇷' },
+  'BRA':  { name: 'Brasil', flag: '🇧🇷' },
+  'MEX':  { name: 'México', flag: '🇲🇽' },
+  'SPN':  { name: 'España', flag: '🇪🇸' },
+  'ESP':  { name: 'España', flag: '🇪🇸' },
+  'IT':   { name: 'Italia', flag: '🇮🇹' },
+  'ITA':  { name: 'Italia', flag: '🇮🇹' },
+  'SKOR': { name: 'Corea del Sur', flag: '🇰🇷' },
+  'KOR':  { name: 'Corea del Sur', flag: '🇰🇷' },
+  'PRK':  { name: 'Corea del Norte', flag: '🇰🇵' },
+  'AUS':  { name: 'Australia', flag: '🇦🇺' },
+  'ISRA': { name: 'Israel', flag: '🇮🇱' },
+  'ISR':  { name: 'Israel', flag: '🇮🇱' },
+  'IRAN': { name: 'Irán', flag: '🇮🇷' },
+  'IRN':  { name: 'Irán', flag: '🇮🇷' },
+  'TURK': { name: 'Turquía', flag: '🇹🇷' },
+  'TUR':  { name: 'Turquía', flag: '🇹🇷' },
+  'UAE':  { name: 'Emiratos Árabes', flag: '🇦🇪' },
+  'ISS':  { name: 'Estación Espacial Internacional', flag: '🛰' },
+  'SES':  { name: 'Luxemburgo (SES)', flag: '🇱🇺' },
+  'GLOB': { name: 'Globalstar', flag: '🌐' },
+  'ORB':  { name: 'Orbcomm', flag: '🌐' },
+  'IRID': { name: 'Iridium', flag: '🌐' },
+  'ITSO': { name: 'Intelsat', flag: '🌐' },
+  'AB':   { name: 'Arab Sat', flag: '🇸🇦' },
+  'EUTE': { name: 'Eutelsat', flag: '🇪🇺' },
+  'EUT':  { name: 'Eutelsat', flag: '🇪🇺' },
+  'NATO': { name: 'OTAN', flag: '🛡' },
+  'TBD':  { name: 'Por determinar', flag: '❓' },
+  'CHBZ': { name: 'China/Brasil', flag: '🇧🇷' },
+  'ROC':  { name: 'Taiwán (ROC)', flag: '🇹🇼' },
+  'FIN':  { name: 'Finlandia', flag: '🇫🇮' },
+  'SEAL': { name: 'Sea Launch', flag: '🚀' },
+  'SAU':  { name: 'Arabia Saudita', flag: '🇸🇦' },
+  'EGY':  { name: 'Egipto', flag: '🇪🇬' },
+  'ZAF':  { name: 'Sudáfrica', flag: '🇿🇦' },
+  'SWE':  { name: 'Suecia', flag: '🇸🇪' },
+  'SUI':  { name: 'Suiza', flag: '🇨🇭' },
+  'NLD':  { name: 'Países Bajos', flag: '🇳🇱' },
 };
 
 function groupMeta(name: string) {
@@ -48,15 +114,53 @@ export class SatelliteSearch implements OnInit, OnDestroy {
   readonly results  = signal<SatelliteSummary[]>([]);
   readonly loading  = signal(false);
   readonly activeIdx = signal(-1);
+  readonly selectedCountry = signal<string>('');
+
+  readonly availableCountries = computed(() => {
+    const counts = new Map<string, number>();
+    for (const s of this.results()) {
+      const code = s.country || 'UNK';
+      counts.set(code, (counts.get(code) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([code, count]) => ({
+        code,
+        count,
+        name: this.getCountryName(code === 'UNK' ? undefined : code),
+        flag: this.getCountryFlag(code === 'UNK' ? undefined : code),
+      }))
+      .sort((a, b) => b.count - a.count);
+  });
+
+  readonly filteredResults = computed(() => {
+    const country = this.selectedCountry();
+    const sats = this.results();
+    if (!country) return sats;
+    return sats.filter(s => (s.country || 'UNK') === country);
+  });
 
   readonly grouped = computed(() => {
     const map = new Map<string, SatelliteSummary[]>();
-    for (const s of this.results()) {
+    for (const s of this.filteredResults()) {
       const arr = map.get(s.groupName) ?? [];
       arr.push(s);
       map.set(s.groupName, arr);
     }
-    const order = ['Space Stations','Visually Observable','Weather','Amateur Radio','Other'];
+    const order = [
+      'Space Stations',
+      'Visually Observable',
+      'Weather',
+      'Amateur Radio',
+      'Starlink',
+      'OneWeb',
+      'GPS Operational',
+      'GLONASS Operational',
+      'Galileo',
+      'BeiDou',
+      'Science',
+      'Geodetic',
+      'Other'
+    ];
     return [...map.entries()]
       .sort(([a],[b]) => (order.indexOf(a) ?? 99) - (order.indexOf(b) ?? 99))
       .map(([groupName, sats]) => ({ ...groupMeta(groupName), sats }));
@@ -69,6 +173,7 @@ export class SatelliteSearch implements OnInit, OnDestroy {
   constructor() {
     effect(() => {
       this.query();
+      this.selectedCountry.set('');
       this.activeIdx.set(-1);
     });
   }
@@ -129,6 +234,16 @@ export class SatelliteSearch implements OnInit, OnDestroy {
 
   close(): void {
     this.closed.emit();
+  }
+
+  getCountryFlag(code?: string): string {
+    if (!code) return '🌐';
+    return COUNTRY_INFO[code]?.flag ?? '🌐';
+  }
+
+  getCountryName(code?: string): string {
+    if (!code) return 'Desconocido';
+    return COUNTRY_INFO[code]?.name ?? `Código: ${code}`;
   }
 
   groupMeta(name: string) { return groupMeta(name); }

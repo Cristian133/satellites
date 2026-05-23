@@ -21,13 +21,27 @@
                [ngModel]="lon()" (ngModelChange)="lon.set(+$event)" placeholder="–" />
       </div>
 
+      <!-- Days selector -->
+      <div class="days-row">
+        <span class="days-label">Días</span>
+        <div class="days-seg">
+          @for (d of daysOptions; track d) {
+            <button
+              class="days-seg__btn"
+              [class.days-seg__btn--active]="days() === d"
+              (click)="days.set(d)"
+            >{{ d }}</button>
+          }
+        </div>
+      </div>
+
       <!-- Search + filter row -->
       <div class="action-row">
         <button class="search-btn" [disabled]="!canSearch()" (click)="search()">
           @if (loading()) {
             <span class="spinner-sm"></span>
           } @else {
-            Buscar · 3 días
+            Buscar · {{ days() }} {{ days() === 1 ? 'día' : 'días' }}
           }
         </button>
         @if (hasSearched()) {
@@ -96,7 +110,7 @@
           }
         </div>
       } @else if (hasSearched() && !loading()) {
-        <div class="no-passes">Sin pases en los próximos 3 días</div>
+        <div class="no-passes">Sin pases en los próximos {{ days() }} {{ days() === 1 ? 'día' : 'días' }}</div>
       }
 
     </div>

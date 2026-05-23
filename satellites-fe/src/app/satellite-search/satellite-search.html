@@ -22,13 +22,51 @@
     }
   </div>
 
+  <!-- Filter bar -->
+  @if (results().length > 0) {
+    <div class="palette__filters">
+      <span class="palette__filters-icon">🏳️</span>
+      <select
+        class="palette__select"
+        [ngModel]="selectedCountry()"
+        (ngModelChange)="selectedCountry.set($event)"
+      >
+        <option value="">Todos los países ({{ results().length }})</option>
+        @for (c of availableCountries(); track c.code) {
+          <option [value]="c.code">
+            {{ c.flag }} {{ c.name }} ({{ c.count }})
+          </option>
+        }
+      </select>
+    </div>
+  }
+
   <!-- Results -->
   <div class="palette__results">
     @if (grouped().length === 0 && !loading()) {
-      <div class="palette__empty">Sin resultados para "{{ query() }}"</div>
+      <div class="palette__empty">
+        @if (selectedCountry()) {
+          No hay satélites de este país en los resultados para "{{ query() }}"
+        } @else {
+          Sin resultados para "{{ query() }}"
+        }
+      </div>
     }
 
     @let flat = flatResults();
+
+    @if (flat.length > 0) {
+      <div class="results-header">
+        <span class="results-header__name">Nombre</span>
+        <span class="results-header__meta">
+          <span class="results-header__orbit">Órbita</span>
+          <span class="results-header__period">Periodo</span>
+          <span class="results-header__inc">Inc.</span>
+          <span class="results-header__country">País</span>
+          <span class="results-header__id">NORAD ID</span>
+        </span>
+      </div>
+    }
 
     @for (group of grouped(); track group.label) {
       <div class="group">
@@ -53,6 +91,10 @@
               </span>
               <span class="sat-row__period">{{ formatPeriod(sat.periodMin) }}</span>
               <span class="sat-row__inc">{{ sat.inclination }}°</span>
+              <span class="sat-row__country" [title]="getCountryName(sat.country)">
+                <span class="sat-row__flag">{{ getCountryFlag(sat.country) }}</span>
+                <span class="sat-row__code">{{ sat.country || 'UNK' }}</span>
+              </span>
               <span class="sat-row__id">{{ sat.noradId }}</span>
             </span>
             @if (sat.noradId === currentNoradId()) {

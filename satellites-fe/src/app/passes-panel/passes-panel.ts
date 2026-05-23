@@ -20,12 +20,15 @@ export class PassesPanel {
 
   readonly lat          = signal<number | null>(null);
   readonly lon          = signal<number | null>(null);
+  readonly days         = signal(3);
   readonly loading      = signal(false);
   readonly error        = signal<string | null>(null);
   readonly expanded     = signal(true);
   readonly hasSearched  = signal(false);
   readonly onlyVisible  = signal(false);
   readonly selectedPass = signal<SatellitePass | null>(null);
+
+  readonly daysOptions = [1, 3, 5, 7];
 
   private readonly rawPasses = signal<SatellitePass[]>([]);
 
@@ -116,7 +119,7 @@ export class PassesPanel {
     this.loading.set(true);
     this.error.set(null);
 
-    this.service.getPasses(this.noradId(), lat, lon).subscribe({
+    this.service.getPasses(this.noradId(), lat, lon, 0, this.days()).subscribe({
       next: (r) => {
         this.rawPasses.set(r.passes);
         this.hasSearched.set(true);

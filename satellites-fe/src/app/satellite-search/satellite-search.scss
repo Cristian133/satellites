@@ -1,7 +1,7 @@
 :host {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 10000;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -93,12 +93,53 @@
   &:hover { color: #94a3b8; }
 }
 
+// ── Filter bar ───────────────────────────────────────────────────────────────
+
+.palette__filters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.palette__filters-icon {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.palette__select {
+  flex: 1;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.6rem;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    border-color: rgba(56, 189, 248, 0.6);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.15);
+  }
+
+  option {
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+}
+
 // ── Results ──────────────────────────────────────────────────────────────────
 
 .palette__results {
   overflow-y: auto;
   flex: 1;
-  padding: 0.35rem 0;
+  padding: 0;
 
   scrollbar-width: thin;
   scrollbar-color: #1e293b transparent;
@@ -113,6 +154,61 @@
   font-size: 0.875rem;
 }
 
+// ── Results header ───────────────────────────────────────────────────────────
+
+.results-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0.3rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #475569;
+  position: sticky;
+  top: 0;
+  background: rgba(10, 15, 30, 0.96);
+  z-index: 2;
+}
+
+.results-header__name {
+  flex: 1;
+}
+
+.results-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.results-header__orbit {
+  width: 3.5rem;
+  text-align: center;
+}
+
+.results-header__period {
+  width: 4rem;
+  text-align: right;
+}
+
+.results-header__inc {
+  width: 3rem;
+  text-align: right;
+}
+
+.results-header__country {
+  width: 4.5rem;
+  text-align: center;
+}
+
+.results-header__id {
+  width: 3.5rem;
+  text-align: right;
+}
+
 // ── Group ────────────────────────────────────────────────────────────────────
 
 .group { margin-bottom: 0.25rem; }
@@ -121,9 +217,9 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 1rem 0.2rem;
+  padding: 0.55rem 1rem 0.25rem;
   position: sticky;
-  top: 0;
+  top: 24px; /* offset by results-header height to avoid overlap */
   background: rgba(10, 15, 30, 0.96);
   z-index: 1;
 }
@@ -134,14 +230,16 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #475569;
+  color: #38bdf8;
+  opacity: 0.85;
 }
 .group__count {
   font-size: 0.58rem;
-  color: #334155;
-  background: #1e293b;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.15);
   border-radius: 10px;
-  padding: 0.05rem 0.4rem;
+  padding: 0.02rem 0.4rem;
 }
 
 // ── Satellite row ────────────────────────────────────────────────────────────
@@ -186,6 +284,9 @@
   padding: 0.1rem 0.3rem;
   background: #1e293b;
   color: #64748b;
+  width: 3.5rem;
+  text-align: center;
+  box-sizing: border-box;
 
   &[data-type='LEO'] { color: #38bdf8; background: rgba(56,189,248,0.1); }
   &[data-type='SSO'] { color: #a78bfa; background: rgba(167,139,250,0.1); }
@@ -197,7 +298,7 @@
   font-size: 0.72rem;
   color: #64748b;
   font-variant-numeric: tabular-nums;
-  min-width: 3.5rem;
+  width: 4rem;
   text-align: right;
 }
 
@@ -205,15 +306,38 @@
   font-size: 0.72rem;
   color: #475569;
   font-variant-numeric: tabular-nums;
-  min-width: 3rem;
+  width: 3rem;
   text-align: right;
+}
+
+.sat-row__country {
+  width: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.sat-row__flag {
+  font-size: 0.8rem;
+  display: inline-block;
+  line-height: 1;
+}
+
+.sat-row__code {
+  font-family: monospace;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #94a3b8;
 }
 
 .sat-row__id {
   font-size: 0.68rem;
   color: #334155;
   font-variant-numeric: tabular-nums;
-  min-width: 3.2rem;
+  width: 3.5rem;
   text-align: right;
 }
 

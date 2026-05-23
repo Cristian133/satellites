@@ -34,14 +34,14 @@ import {
   LagrangePolynomialApproximation,
   NearFarScalar,
   PolylineDashMaterialProperty,
-  PolylineGlowMaterialProperty,
   Rectangle,
   SampledPositionProperty,
   SingleTileImageryProvider,
   TileMapServiceImageryProvider,
-  UrlTemplateImageryProvider,
   Viewer,
 } from 'cesium';
+
+import { twoline2satrec, propagate, gstime, eciToEcf, eciToGeodetic, degreesLat, degreesLong } from 'satellite.js';
 
 import { SatelliteService } from '../satellite.service';
 import { PositionState, SatelliteApiResponse, PassSelection } from '../satellite.model';
@@ -149,20 +149,11 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
 
   private initViewer(): void {
     this.viewer = new Viewer(this.containerRef.nativeElement, {
-      // Use CartoDB Dark Matter high-resolution online maps to provide stunning visual clarity
-      // and match the premium dark sci-fi/orbital-systems design aesthetic perfectly.
-      baseLayer: new ImageryLayer(
-        new UrlTemplateImageryProvider({
-          url: 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-          credit: '© OpenStreetMap contributors, © CartoDB',
-          minimumLevel: 0,
-          maximumLevel: 18,
-        }),
-        {
-          contrast: 1.5,      // Eleva el contraste para diferenciar drásticamente el mar y la tierra
-          saturation: 1.7,    // Satura los colores: el mar se vuelve azul profundo y la tierra adquiere tonos amarillos/verdes intensos
-          brightness: 0.95,   // Ajusta sutilmente el brillo para mejorar la profundidad
-        }
+      baseLayer: ImageryLayer.fromProviderAsync(
+        TileMapServiceImageryProvider.fromUrl(
+          buildModuleUrl('Assets/Textures/NaturalEarthII/'),
+          { fileExtension: 'jpg' },
+        ),
       ),
       // terrainProvider defaults to EllipsoidTerrainProvider — no need to set it
       baseLayerPicker:       false,
@@ -233,13 +224,10 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
       },
       path: {
         resolution: 1,
-        trailTime:  600,
-        leadTime:   0,
+        trailTime:  5400,
+        leadTime:   5400,
         width:      1.5,
-        material: new PolylineGlowMaterialProperty({
-          glowPower: 0.2,
-          color: Color.fromCssColorString('#38bdf860'),
-        }),
+        material:   Color.fromCssColorString('#ef4444'),
       },
     });
   }
@@ -250,8 +238,8 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
       position: this.groundSampledPos,
       point: {
         pixelSize: 10,
-        color: Color.fromCssColorString('#38bdf8'),
-        outlineColor: Color.fromCssColorString('#0c4a6e'),
+        color: Color.fromCssColorString('#808080'),
+        outlineColor: Color.fromCssColorString('#404040'),
         outlineWidth: 2,
         heightReference: HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
@@ -263,11 +251,11 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
       id: 'footprint',
       position: this.groundSampledPos,
       ellipse: {
-        semiMajorAxis: new CallbackProperty(() => this.footprintRadiusM, false),
-        semiMinorAxis: new CallbackProperty(() => this.footprintRadiusM, false),
-        material: Color.fromCssColorString('#38bdf812'),
+        semiMajorAxis: new CallbackProperty(() => this.footprintRadiusM * 0.25, false),
+        semiMinorAxis: new CallbackProperty(() => this.footprintRadiusM * 0.25, false),
+        material: Color.fromCssColorString('#80808018'),
         outline: true,
-        outlineColor: Color.fromCssColorString('#38bdf855'),
+        outlineColor: Color.fromCssColorString('#80808060'),
         outlineWidth: 1,
         heightReference: HeightReference.CLAMP_TO_GROUND,
       },
@@ -286,7 +274,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         width: 1.5,
         arcType: ArcType.NONE,
         material: new PolylineDashMaterialProperty({
-          color: Color.fromCssColorString('#38bdf850'),
+          color: Color.fromCssColorString('#80808060'),
           dashLength: 16,
         }),
       },
@@ -371,6 +359,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
 
     if (this.firstSample) {
       this.firstSample = false;
+      this.preloadOrbit(data.tle.line1, data.tle.line2, new Date(data.propagation.timestamp));
       const entity = this.viewer.entities.getById('satellite');
       if (this.tracking() && entity) {
         // trackedEntity lets Cesium handle following; user can still orbit/zoom.
@@ -385,6 +374,33 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
           duration: 2,
         });
       }
+    }
+  }
+
+  private preloadOrbit(tle1: string, tle2: string, centerDate: Date): void {
+    const satrec = twoline2satrec(tle1, tle2);
+    const stepS  = 60;
+    const halfS  = 5400;
+
+    for (let dt = -halfS; dt <= halfS; dt += stepS) {
+      const date = new Date(centerDate.getTime() + dt * 1000);
+      const pv  = propagate(satrec, date);
+      if (!pv || !pv.position || typeof pv.position === 'boolean') continue;
+      const pos = pv.position;
+
+      const gst = gstime(date);
+      const ecf = eciToEcf(pos, gst);
+      const geo = eciToGeodetic(pos, gst);
+      const time = JulianDate.fromDate(date);
+
+      this.sampledPos.addSample(
+        time,
+        new Cartesian3(ecf.x * 1000, ecf.y * 1000, ecf.z * 1000),
+      );
+      this.groundSampledPos.addSample(
+        time,
+        Cartesian3.fromDegrees(degreesLong(geo.longitude), degreesLat(geo.latitude), 0),
+      );
     }
   }
 

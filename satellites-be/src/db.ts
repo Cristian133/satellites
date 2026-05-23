@@ -62,6 +62,7 @@ interface SearchRow {
   group_name:  string;
   inclination: number;
   period_min:  number;
+  country?:    string;
 }
 
 interface UpsertParams extends Record<string, unknown> {
@@ -138,21 +139,31 @@ function stmts(db: Database.Database): Stmts {
       WHERE excluded.epoch_ms > tles.epoch_ms
     `),
     search: db.prepare(`
-      SELECT norad_id, name,
-             COALESCE(group_name, 'Other') AS group_name,
-             inclination,
-             ROUND(1440.0 / mean_motion, 0) AS period_min
-        FROM tles
-       WHERE name LIKE ? OR CAST(norad_id AS TEXT) LIKE ?
+      SELECT t.norad_id, t.name,
+             COALESCE(t.group_name, 'Other') AS group_name,
+             t.inclination,
+             ROUND(1440.0 / t.mean_motion, 0) AS period_min,
+             c.country
+        FROM tles t
+        LEFT JOIN satcat_countries c ON t.norad_id = c.norad_id
+       WHERE t.name LIKE ? OR CAST(t.norad_id AS TEXT) LIKE ?
        ORDER BY
-         CASE WHEN UPPER(name) LIKE ? THEN 0 ELSE 1 END,
-         CASE group_name
+         CASE WHEN UPPER(t.name) LIKE ? THEN 0 ELSE 1 END,
+         CASE t.group_name
            WHEN 'Space Stations'      THEN 0
            WHEN 'Visually Observable' THEN 1
            WHEN 'Weather'             THEN 2
            WHEN 'Amateur Radio'       THEN 3
-           ELSE 4 END,
-         name ASC
+           WHEN 'Starlink'            THEN 4
+           WHEN 'OneWeb'              THEN 5
+           WHEN 'GPS Operational'     THEN 6
+           WHEN 'GLONASS Operational' THEN 7
+           WHEN 'Galileo'             THEN 8
+           WHEN 'BeiDou'              THEN 9
+           WHEN 'Science'             THEN 10
+           WHEN 'Geodetic'            THEN 11
+           ELSE 12 END,
+         t.name ASC
        LIMIT ?
     `),
   };
@@ -202,6 +213,11 @@ export function openDatabase(dbPath: string = DB_PATH): Database.Database {
       parse_errors INTEGER DEFAULT 0,
       status       TEXT    NOT NULL DEFAULT 'running'
     );
+
+    CREATE TABLE IF NOT EXISTS satcat_countries (
+      norad_id INTEGER PRIMARY KEY,
+      country  TEXT NOT NULL
+    );
   `);
 
   // Migration: add group_name column to existing databases
@@ -246,6 +262,7 @@ export interface SatelliteSummary {
   groupName:  string;
   inclination: number;
   periodMin:  number;
+  country?:   string;
 }
 
 export function searchSatellites(
@@ -262,6 +279,7 @@ export function searchSatellites(
     groupName:   r.group_name,
     inclination: Math.round(r.inclination * 10) / 10,
     periodMin:   Math.round(r.period_min),
+    country:     r.country,
   }));
 }
 
