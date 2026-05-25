@@ -17,6 +17,7 @@ import {
   Color,
   JulianDate,
   Math as CesiumMath,
+  PointPrimitive,
   PointPrimitiveCollection,
   TileMapServiceImageryProvider,
   ImageryLayer,
@@ -54,7 +55,7 @@ interface OrbitParticle {
   raan: number; // Right ascension of ascending node
   meanAnomaly: number; // Current angle in orbit
   speed: number;
-  primitiveIndex: number;
+  primitive: PointPrimitive;
 }
 
 @Component({
@@ -319,7 +320,7 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
         raan,
         meanAnomaly,
         speed,
-        primitiveIndex: this.pointPrimitives.length - 1,
+        primitive,
       });
     }
   }
@@ -337,7 +338,7 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
       const meanAnomaly = Math.random() * Math.PI * 2;
       const speed = 0.03 + Math.random() * 0.02; // Escombros a veces más rápidos o erráticos
 
-      this.pointPrimitives.add({
+      const primitive = this.pointPrimitives.add({
         position: Cartesian3.ZERO,
         color: redColor,
         pixelSize: 3,
@@ -351,7 +352,7 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
         raan,
         meanAnomaly,
         speed,
-        primitiveIndex: this.pointPrimitives.length - 1,
+        primitive,
       });
     }
   }
@@ -381,15 +382,8 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
         const y = R * (cosTheta * sinRaan + sinTheta * cosRaan * cosInc);
         const z = R * (sinTheta * sinInc);
 
-        if (this.pointPrimitives) {
-          try {
-            const primitive = this.pointPrimitives.get(i);
-            if (primitive) {
-              primitive.position = new Cartesian3(x, y, z);
-            }
-          } catch (e) {
-            // Manejar desajustes temporales al regenerar colecciones
-          }
+        if (p.primitive) {
+          p.primitive.position = new Cartesian3(x, y, z);
         }
       }
 

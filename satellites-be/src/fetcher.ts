@@ -150,7 +150,15 @@ export async function syncAll(db: Database.Database): Promise<SyncResult> {
     console.error("[sync] SATCAT sync failed:", err);
   });
 
-  const results = await Promise.all(SOURCES.map((source) => syncSource(db, source)));
+  const results: SyncResult[] = [];
+  for (let i = 0; i < SOURCES.length; i++) {
+    const source = SOURCES[i];
+    const res = await syncSource(db, source);
+    results.push(res);
+    if (i < SOURCES.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  }
 
   const totals = results.reduce<SyncResult>(
     (acc, r) => ({

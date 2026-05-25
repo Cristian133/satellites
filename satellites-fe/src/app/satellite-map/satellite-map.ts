@@ -104,6 +104,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   private sampledPos!: SampledPositionProperty;
   private groundSampledPos!: SampledPositionProperty;
   private firstSample = true;
+  private pollCount = 0;
   private nightCanvas!: HTMLCanvasElement;
   private nightOverlayLayer: ImageryLayer | null = null;
   private lastNightJulianDate?: JulianDate;
@@ -337,6 +338,14 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
 
   private addSample(data: SatelliteApiResponse): void {
     if (!this.viewer || !this.sampledPos) return;
+
+    // Reciclar la trayectoria cada 100 ticks (~5 minutos de polling) para evitar fugas de memoria y centrar el trazo
+    this.pollCount++;
+    if (this.pollCount >= 100) {
+      this.pollCount = 0;
+      this.resetTrajectory();
+      this.preloadOrbit(data.tle.line1, data.tle.line2, new Date(data.propagation.timestamp));
+    }
 
     const time = JulianDate.fromDate(new Date(data.propagation.timestamp));
     const { x, y, z } = data.state.ecef.position_km;
