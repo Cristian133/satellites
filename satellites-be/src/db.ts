@@ -218,6 +218,9 @@ export function openDatabase(dbPath: string = DB_PATH): Database.Database {
       norad_id INTEGER PRIMARY KEY,
       country  TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_tles_name ON tles (name);
+    CREATE INDEX IF NOT EXISTS idx_tles_group ON tles (group_name);
   `);
 
   // Migration: add group_name column to existing databases

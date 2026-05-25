@@ -48,6 +48,8 @@ async function main(): Promise<void> {
 
   const app = express();
 
+  const sgp4Cache = new Map<number, { epochMs: number; constants: Constants }>();
+
   // GET /api/satellite/:id  — propagate satellite to current instant
   app.get("/api/satellite/:id", (req: Request, res: Response) => {
     const noradId = parseInt(req.params["id"] as string, 10);
@@ -67,14 +69,20 @@ async function main(): Promise<void> {
 
     const { name, line1, line2 } = row;
 
-    let elements:  Elements;
     let constants: Constants;
-    try {
-      elements  = resolveResult(Elements.fromTle(wasm, null, line1, line2));
-      constants = resolveResult(Constants.fromElementsAfspcCompatibilityMode(wasm, elements));
-    } catch (err) {
-      res.status(500).json({ error: "SGP4 initialisation failed", detail: String(err) });
-      return;
+    const cached = sgp4Cache.get(noradId);
+    if (cached && cached.epochMs === row.epoch_ms) {
+      constants = cached.constants;
+    } else {
+      let elements:  Elements;
+      try {
+        elements  = resolveResult(Elements.fromTle(wasm, null, line1, line2));
+        constants = resolveResult(Constants.fromElementsAfspcCompatibilityMode(wasm, elements));
+        sgp4Cache.set(noradId, { epochMs: row.epoch_ms, constants });
+      } catch (err) {
+        res.status(500).json({ error: "SGP4 initialisation failed", detail: String(err) });
+        return;
+      }
     }
 
     const t = minutesSinceTleEpoch(line1);
