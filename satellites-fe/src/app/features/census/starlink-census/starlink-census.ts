@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
-import { SatelliteService } from '../satellite.service';
-import { StarlinkCensusResult } from '../satellite.model';
+import { SatelliteService } from '../../../core/services/satellite.service';
+import { StarlinkCensusResult } from '../../../core/models/satellite.model';
 
 @Component({
   selector: 'app-starlink-census',

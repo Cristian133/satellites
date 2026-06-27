@@ -3,8 +3,8 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { switchMap } from 'rxjs';
 import { DecimalPipe, DatePipe } from '@angular/common';
-import { SatelliteService } from '../satellite.service';
-import { PositionState } from '../satellite.model';
+import { SatelliteService } from '../../../core/services/satellite.service';
+import { PositionState } from '../../../core/models/satellite.model';
 
 @Component({
   selector: 'app-satellite-tracker',

@@ -1,8 +1,8 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule }   from '@angular/forms';
 import { DatePipe }      from '@angular/common';
-import { SatelliteService }                       from '../satellite.service';
-import type { SatellitePass, PassSelection }       from '../satellite.model';
+import { SatelliteService }                       from '../../../core/services/satellite.service';
+import type { SatellitePass, PassSelection }       from '../../../core/models/satellite.model';
 
 const CARDINAL = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
 

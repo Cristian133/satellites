@@ -11,11 +11,13 @@ import {
   startWith,
   switchMap,
 } from 'rxjs';
-import { FindPassesResult, PositionState, SatelliteApiResponse, SatelliteSummary, StarlinkCensusResult } from './satellite.model';
+import { FindPassesResult, PositionState, SatelliteApiResponse, SatelliteSummary, StarlinkCensusResult } from '../models/satellite.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class SatelliteService {
   private readonly http = inject(HttpClient);
+  private readonly base = environment.apiUrl;
 
   /**
    * Emite 3 segundos; cada tick cancela la petición anterior (switchMap)
@@ -34,7 +36,7 @@ export class SatelliteService {
     return interval(3000).pipe(
       startWith(0),
       switchMap(() =>
-        this.http.get<SatelliteApiResponse>(`/api/satellite/${noradId}`).pipe(
+        this.http.get<SatelliteApiResponse>(`${this.base}/api/satellite/${noradId}`).pipe(
           map(
             (data): PositionState => ({ data, error: null, loading: false })
           ),
@@ -62,7 +64,7 @@ export class SatelliteService {
   }
 
   searchSatellites(q: string): Observable<SatelliteSummary[]> {
-    return this.http.get<SatelliteSummary[]>('/api/satellites', { params: { q } });
+    return this.http.get<SatelliteSummary[]>(`${this.base}/api/satellites`, { params: { q } });
   }
 
   getPasses(
@@ -72,12 +74,12 @@ export class SatelliteService {
     alt = 0,
     days = 3,
   ): Observable<FindPassesResult> {
-    return this.http.get<FindPassesResult>('/api/passes', {
+    return this.http.get<FindPassesResult>(`${this.base}/api/passes`, {
       params: { noradId, lat, lon, alt, days },
     });
   }
 
   getStarlinkCensus(): Observable<StarlinkCensusResult> {
-    return this.http.get<StarlinkCensusResult>('/api/starlink/census');
+    return this.http.get<StarlinkCensusResult>(`${this.base}/api/starlink/census`);
   }
 }

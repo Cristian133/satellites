@@ -43,8 +43,8 @@ import {
 
 import { twoline2satrec, propagate, gstime, eciToEcf, eciToGeodetic, degreesLat, degreesLong } from 'satellite.js';
 
-import { SatelliteService } from '../satellite.service';
-import { PositionState, SatelliteApiResponse, PassSelection } from '../satellite.model';
+import { SatelliteService } from '../../../core/services/satellite.service';
+import { PositionState, SatelliteApiResponse, PassSelection } from '../../../core/models/satellite.model';
 import { PassesPanel } from '../passes-panel/passes-panel';
 import { SatelliteSearch } from '../satellite-search/satellite-search';
 import { PerformanceOverlay } from '../performance-overlay/performance-overlay';

@@ -1,5 +1,5 @@
 import { Component, ChangeDetectionStrategy, inject, input, signal, computed, DoCheck } from '@angular/core';
-import { PerformanceMonitorService } from '../services/performance-monitor.service';
+import { PerformanceMonitorService } from '../../../core/services/performance-monitor.service';
 
 @Component({
   selector: 'app-performance-overlay',

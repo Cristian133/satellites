@@ -13,8 +13,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, debounceTime, switchMap } from 'rxjs';
-import { SatelliteService } from '../satellite.service';
-import type { SatelliteSummary } from '../satellite.model';
+import { SatelliteService } from '../../../core/services/satellite.service';
+import type { SatelliteSummary } from '../../../core/models/satellite.model';
 
 const GROUP_META: Record<string, { label: string; icon: string }> = {
   'Space Stations':      { label: 'Estaciones Espaciales', icon: '🛰' },

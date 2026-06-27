@@ -8,29 +8,21 @@
     </div>
 
     <nav class="app-header__nav" aria-label="Navegación principal">
-      <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'tracker'" (click)="currentMode.set('tracker')"
-        [attr.aria-selected]="currentMode() === 'tracker'" role="tab">
+      <a class="nav-btn" routerLink="/tracker" routerLinkActive="nav-btn--active"
+        [routerLinkActiveOptions]="{ exact: true }" role="tab">
         🛰️ Rastreador Real-Time
-      </button>
-      <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'kessler'" (click)="currentMode.set('kessler')"
-        [attr.aria-selected]="currentMode() === 'kessler'" role="tab">
+      </a>
+      <a class="nav-btn" routerLink="/kessler" routerLinkActive="nav-btn--active" role="tab">
         💥 Simulador Kessler
-      </button>
-      <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'census'" (click)="currentMode.set('census')"
-        [attr.aria-selected]="currentMode() === 'census'" role="tab">
+      </a>
+      <a class="nav-btn" routerLink="/census" routerLinkActive="nav-btn--active" role="tab">
         📊 Censo Starlink
-      </button>
+      </a>
     </nav>
   </header>
 
   <!-- Content area -->
   <main class="app-main">
-    @if (currentMode() === 'tracker') {
-      <app-satellite-map />
-    } @else if (currentMode() === 'kessler') {
-      <app-kessler-game />
-    } @else {
-      <app-starlink-census />
-    }
+    <router-outlet />
   </main>
 </div>
