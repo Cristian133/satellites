@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./satellites-be
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - satellites_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SYNC_ON_START=true
+      - SYNC_SCHEDULE=0 */6 * * *
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  satellites_data:

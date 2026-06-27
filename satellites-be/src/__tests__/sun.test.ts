@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sunDirectionEcef, isInEarthShadow, sunElevationDeg } from "../sun.js";
+import { sunDirectionEcef, isInEarthShadow, sunElevationDeg } from "../math/sun.js";
 
 const EARTH_RADIUS_KM = 6371.0;
 

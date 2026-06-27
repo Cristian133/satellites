@@ -3,9 +3,10 @@
 import { performance } from "perf_hooks";
 import { bindings } from "@wasmer/sgp4";
 import { Elements, Constants } from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
-import { temeToGeodetic } from "../coords";
-import { openDatabase, getTleByNoradId } from "../db";
-import { findPasses } from "../passes";
+import { temeToGeodetic }           from "../math/coords";
+import { openDatabase }             from "../db";
+import { getTleByNoradId }          from "../repositories/tle.repository";
+import { findPasses }               from "../workers/passes.worker";
 
 // ─── Benchmarking Harness ───────────────────────────────────────────────────
 
@@ -130,19 +131,21 @@ async function main(): Promise<void> {
     temeToGeodetic(prediction.position, now);
   }));
 
+  const tleRow = { name: row.name, line1: row.line1, line2: row.line2, epoch_ms: row.epoch_ms };
+
   // 3. findPasses - 1 día
   results.push(runBenchmark("3. Búsqueda de pases (1 día)", () => {
-    findPasses(db, wasm, issId, observer, { days: 1 });
+    findPasses(wasm, tleRow, issId, observer, { days: 1 });
   }, 2000));
 
   // 4. findPasses - 3 días
   results.push(runBenchmark("4. Búsqueda de pases (3 días)", () => {
-    findPasses(db, wasm, issId, observer, { days: 3 });
+    findPasses(wasm, tleRow, issId, observer, { days: 3 });
   }, 2000));
 
   // 5. findPasses - 10 días
   results.push(runBenchmark("5. Búsqueda de pases (10 días - Carga Máxima)", () => {
-    findPasses(db, wasm, issId, observer, { days: 10 });
+    findPasses(wasm, tleRow, issId, observer, { days: 10 });
   }, 3000));
 
   // Mostrar tabla de resultados hermosamente formateada

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stdMagnitude, apparentMagnitude } from "../magnitude.js";
+import { stdMagnitude, apparentMagnitude } from "../math/magnitude.js";
 
 describe("stdMagnitude", () => {
   it("returns known mag for ISS (NORAD 25544)", () => {

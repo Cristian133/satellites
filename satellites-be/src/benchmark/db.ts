@@ -1,7 +1,8 @@
 "use strict";
 
 import { performance } from "perf_hooks";
-import { openDatabase, searchSatellites, getTleByNoradId, upsertTles } from "../db";
+import { openDatabase } from "../db";
+import { searchSatellites, getTleByNoradId, upsertTles } from "../repositories/tle.repository";
 import type { TleRecord } from "../tle-parser";
 
 // ─── Auxiliary Helpers ────────────────────────────────────────────────────────

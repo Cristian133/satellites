@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { julianDate, gmst82, rot3, ecefToGeodetic, temeToEcef } from "../coords.js";
+import { julianDate, gmst82, rot3, ecefToGeodetic, temeToEcef } from "../math/coords.js";
 
 const TWO_PI = 2 * Math.PI;
 

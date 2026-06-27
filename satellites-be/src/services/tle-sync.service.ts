@@ -1,15 +1,13 @@
 "use strict";
 
-import cron                                        from "node-cron";
-import type Database                               from "better-sqlite3";
-import { parseCatalog }                            from "./tle-parser.js";
-import { upsertTles, startSyncLog, finishSyncLog } from "./db.js";
-import { logger }                                  from "./logger.js";
+import cron                                                      from "node-cron";
+import type Database                                             from "better-sqlite3";
+import { parseCatalog }                                          from "../tle-parser.js";
+import { upsertTles, startSyncLog, finishSyncLog }               from "../repositories/tle.repository.js";
+import { logger }                                                from "../logger.js";
+import { env }                                                   from "../config/env.js";
 
-interface Source {
-  name: string;
-  url:  string;
-}
+interface Source { name: string; url: string }
 
 export interface SyncResult {
   inserted:    number;
@@ -32,8 +30,6 @@ const SOURCES: Source[] = [
   { name: "Geodetic",            url: "https://celestrak.org/NORAD/elements/gp.php?GROUP=geodetic&FORMAT=tle"},
 ];
 
-// ─── HTTP fetch with timeout ──────────────────────────────────────────────────
-
 async function fetchText(url: string, timeoutMs = 30_000): Promise<string> {
   const res = await fetch(url, {
     headers: { "User-Agent": "satellites-api/1.0 (educational project)" },
@@ -42,8 +38,6 @@ async function fetchText(url: string, timeoutMs = 30_000): Promise<string> {
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
   return res.text();
 }
-
-// ─── Single-source sync ───────────────────────────────────────────────────────
 
 async function syncSource(db: Database.Database, source: Source): Promise<SyncResult> {
   const logId = startSyncLog(db, source.url);
@@ -76,28 +70,19 @@ async function syncSource(db: Database.Database, source: Source): Promise<SyncRe
 
   const { inserted, updated } = upsertTles(db, tles, source.name);
   logger.info({ source: source.name, parsed: tles.length, inserted, updated, rejected: parseErrors.length }, `${tag} sync complete`);
-
-  finishSyncLog(db, logId, {
-    totalParsed: tles.length,
-    inserted,
-    updated,
-    parseErrors: parseErrors.length,
-    status:      "ok",
-  });
+  finishSyncLog(db, logId, { totalParsed: tles.length, inserted, updated, parseErrors: parseErrors.length, status: "ok" });
 
   return { inserted, updated, parseErrors: parseErrors.length };
 }
 
-// ─── Sync SATCAT (Country mappings) ──────────────────────────────────────────
-
 export async function syncSatcat(db: Database.Database): Promise<void> {
   logger.info("[sync] Syncing SATCAT country registry...");
   try {
-    const text = await fetchText("https://celestrak.org/pub/satcat.csv");
-    const lines = text.split(/\r?\n/);
+    const text    = await fetchText("https://celestrak.org/pub/satcat.csv");
+    const lines   = text.split(/\r?\n/);
     if (lines.length <= 1) return;
 
-    const headers = lines[0].split(",");
+    const headers  = lines[0].split(",");
     const noradIdx = headers.indexOf("NORAD_CAT_ID");
     const ownerIdx = headers.indexOf("OWNER");
 
@@ -107,26 +92,18 @@ export async function syncSatcat(db: Database.Database): Promise<void> {
     }
 
     const insert = db.prepare("INSERT OR REPLACE INTO satcat_countries (norad_id, country) VALUES (?, ?)");
-
-    const run = db.transaction((rows: [number, string][]) => {
-      for (const [noradId, owner] of rows) {
-        insert.run(noradId, owner);
-      }
-    });
-
+    const run    = db.transaction((rows: [number, string][]) => { for (const [id, owner] of rows) insert.run(id, owner); });
     const batch: [number, string][] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
 
-      const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+    for (let i = 1; i < lines.length; i++) {
+      const line    = lines[i].trim();
+      if (!line) continue;
+      const cols     = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
       const noradStr = cols[noradIdx]?.replace(/"/g, "").trim();
       const ownerStr = cols[ownerIdx]?.replace(/"/g, "").trim();
       if (noradStr && ownerStr) {
         const noradId = parseInt(noradStr, 10);
-        if (!isNaN(noradId)) {
-          batch.push([noradId, ownerStr]);
-        }
+        if (!isNaN(noradId)) batch.push([noradId, ownerStr]);
       }
     }
 
@@ -139,43 +116,28 @@ export async function syncSatcat(db: Database.Database): Promise<void> {
   }
 }
 
-// ─── Full sync (all sources in parallel) ─────────────────────────────────────
-
 export async function syncAll(db: Database.Database): Promise<SyncResult> {
   logger.info({ sources: SOURCES.length }, "[sync] Starting full catalog sync");
 
-  // First sync the SATCAT country mappings
-  await syncSatcat(db).catch((err: unknown) => {
-    logger.error({ err }, "[sync] SATCAT sync failed");
-  });
+  await syncSatcat(db).catch((err: unknown) => logger.error({ err }, "[sync] SATCAT sync failed"));
 
   const results: SyncResult[] = [];
   for (let i = 0; i < SOURCES.length; i++) {
-    const source = SOURCES[i];
-    const res = await syncSource(db, source);
-    results.push(res);
-    if (i < SOURCES.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    }
+    results.push(await syncSource(db, SOURCES[i]!));
+    if (i < SOURCES.length - 1) await new Promise((r) => setTimeout(r, 400));
   }
 
   const totals = results.reduce<SyncResult>(
-    (acc, r) => ({
-      inserted:    acc.inserted    + r.inserted,
-      updated:     acc.updated     + r.updated,
-      parseErrors: acc.parseErrors + r.parseErrors,
-    }),
-    { inserted: 0, updated: 0, parseErrors: 0 }
+    (acc, r) => ({ inserted: acc.inserted + r.inserted, updated: acc.updated + r.updated, parseErrors: acc.parseErrors + r.parseErrors }),
+    { inserted: 0, updated: 0, parseErrors: 0 },
   );
 
   logger.info(totals, "[sync] Complete");
   return totals;
 }
 
-// ─── Cron scheduler ───────────────────────────────────────────────────────────
-
 export function startCronJob(db: Database.Database): void {
-  const schedule = process.env["SYNC_SCHEDULE"] ?? "0 */6 * * *";
+  const schedule = env.SYNC_SCHEDULE;
 
   if (!cron.validate(schedule)) {
     logger.error({ schedule }, "[cron] Invalid SYNC_SCHEDULE expression");
@@ -187,8 +149,7 @@ export function startCronJob(db: Database.Database): void {
     try {
       await syncAll(db);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error({ err: message }, "[cron] Sync error");
+      logger.error({ err: err instanceof Error ? err.message : String(err) }, "[cron] Sync error");
     }
   });
 

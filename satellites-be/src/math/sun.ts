@@ -6,10 +6,6 @@ const RAD              = Math.PI / 180;
 const DEG              = 180 / Math.PI;
 const EARTH_RADIUS_KM  = 6371.0;
 
-/**
- * Unit vector from Earth center toward the Sun, in ECEF.
- * Uses the low-precision solar position algorithm from Meeus Ch. 25 (~1° accuracy).
- */
 export function sunDirectionEcef(date: Date): [number, number, number] {
   const jd = julianDate(date);
   const T  = (jd - 2451545.0) / 36525.0;
@@ -41,10 +37,6 @@ export function sunDirectionEcef(date: Date): [number, number, number] {
   return [ecef[0] / mag, ecef[1] / mag, ecef[2] / mag];
 }
 
-/**
- * Cylindrical Earth-shadow test.
- * Returns true if the satellite (ECEF, km) is in Earth's shadow.
- */
 export function isInEarthShadow(
   satEcef: [number, number, number],
   sunDir:  [number, number, number],
@@ -57,10 +49,6 @@ export function isInEarthShadow(
   return perpSq < EARTH_RADIUS_KM * EARTH_RADIUS_KM;
 }
 
-/**
- * Elevation of the Sun (degrees) as seen from an observer (ECEF, km).
- * Uses geocentric approximation: the observer's zenith is r_obs / |r_obs|.
- */
 export function sunElevationDeg(
   obsEcef: [number, number, number],
   sunDir:  [number, number, number],
