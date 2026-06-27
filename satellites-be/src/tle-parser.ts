@@ -276,7 +276,7 @@ export function parseCatalog(text: string): ParseCatalogResult {
 
     if (l[0] === "1" && l[1] === " " && l.length === 69) {
       const result = parseTleBlock("", l, lines[i + 1] ?? "");
-      result.ok ? tles.push(result.tle) : parseErrors.push(result);
+      if (result.ok) tles.push(result.tle); else parseErrors.push(result);
       i += 2;
     } else if (l[0] === "2" && l[1] === " ") {
       i++;
@@ -285,7 +285,7 @@ export function parseCatalog(text: string): ParseCatalogResult {
       const l2 = lines[i + 2] ?? "";
       if (l1[0] === "1" && l1[1] === " " && l2[0] === "2" && l2[1] === " ") {
         const result = parseTleBlock(l, l1, l2);
-        result.ok ? tles.push(result.tle) : parseErrors.push(result);
+        if (result.ok) tles.push(result.tle); else parseErrors.push(result);
         i += 3;
       } else {
         i++;

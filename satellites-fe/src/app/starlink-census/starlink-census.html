@@ -1,0 +1,251 @@
+<div class="census-container">
+
+  <!-- Header Section -->
+  <header class="census-header">
+    <div class="census-header__title">
+      <span class="census-header__badge">ANÁLISIS DE DATOS</span>
+      <h1>Censo Analítico de Starlink</h1>
+      <p class="census-header__subtitle">
+        Estadísticas agregadas en tiempo real de la megaconstelación comercial de SpaceX, calculadas a partir de la Tercera Ley de Kepler.
+      </p>
+    </div>
+    <button class="census-header__refresh-btn" (click)="loadCensus()" [class.census-header__refresh-btn--loading]="loading()">
+      🔄 {{ loading() ? 'Cargando...' : 'Actualizar Censo' }}
+    </button>
+  </header>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <div class="census-error">
+      <span class="census-error__icon">⚠</span>
+      <div class="census-error__msg">
+        <h3>Error de conexión</h3>
+        <p>{{ error() }}</p>
+      </div>
+      <button class="census-error__retry" (click)="loadCensus()">Reintentar</button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading() && !censusData()) {
+    <div class="census-loader">
+      <div class="census-loader__spinner"></div>
+      <p>Calculando altitudes y consolidando censo...</p>
+    </div>
+  }
+
+  <!-- Main Census Dashboard Dashboard Content -->
+  @if (censusData(); as data) {
+    <!-- Stats Cards Grid -->
+    <div class="census-grid">
+      <!-- Total Card -->
+      <div class="census-card census-card--blue">
+        <div class="census-card__icon">📡</div>
+        <div class="census-card__info">
+          <span class="census-card__label">Catálogo Registrado</span>
+          <h2 class="census-card__value">{{ data.total }}</h2>
+          <span class="census-card__subtext">Satélites en base de datos</span>
+        </div>
+      </div>
+
+      <!-- Active Card -->
+      <div class="census-card census-card--green">
+        <div class="census-card__icon">🟢</div>
+        <div class="census-card__info">
+          <span class="census-card__label">Operacionales</span>
+          <h2 class="census-card__value">{{ data.active }}</h2>
+          <span class="census-card__subtext">Órbita de servicio (>540 km)</span>
+        </div>
+      </div>
+
+      <!-- Climbing Card -->
+      <div class="census-card census-card--orange">
+        <div class="census-card__icon">🚀</div>
+        <div class="census-card__info">
+          <span class="census-card__label">Fase de Ascenso</span>
+          <h2 class="census-card__value">{{ data.climbing }}</h2>
+          <span class="census-card__subtext">Elevación y maniobras (340-540 km)</span>
+        </div>
+      </div>
+
+      <!-- Decaying Card -->
+      <div class="census-card census-card--red">
+        <div class="census-card__icon">🔴</div>
+        <div class="census-card__info">
+          <span class="census-card__label">Críticos (Decaimiento)</span>
+          <h2 class="census-card__value">{{ data.decaying }}</h2>
+          <span class="census-card__subtext">Fuga orbital / reentrada (<340 km)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="census-tabs" role="tablist">
+      <button class="census-tab-btn" [class.census-tab-btn--active]="activeTab() === 'metrics'" (click)="activeTab.set('metrics')" role="tab">
+        📈 Perfil de Ascenso Reciente
+      </button>
+      <button class="census-tab-btn" [class.census-tab-btn--active]="activeTab() === 'launches'" (click)="activeTab.set('launches')" role="tab">
+        🚀 Lanzamientos Recientes ({{ data.recentLaunches.length }})
+      </button>
+      <button class="census-tab-btn" [class.census-tab-btn--active]="activeTab() === 'critical'" (click)="activeTab.set('critical')" role="tab">
+        ⚠ Satélites Críticos ({{ data.criticalList.length }})
+      </button>
+    </div>
+
+    <!-- Tab Panels -->
+    <div class="census-panel">
+
+      <!-- PANEL 1: CHART (Ascent Profile) -->
+      @if (activeTab() === 'metrics') {
+        <div class="census-chart-container">
+          <div class="census-chart-info">
+            <h3>Perfil de Altitud de Lanzamientos Recientes</h3>
+            <p>
+              Este gráfico ilustra la altura orbital de los satélites agregados más recientemente en el catálogo. Se aprecia cómo ascienden desde su órbita de inyección inicial (~290 km) hacia su órbita operativa estable de 550 km. Pasa el cursor por encima de los puntos para ver detalles del satélite.
+            </p>
+          </div>
+
+          <!-- SVG Chart -->
+          <div class="census-chart-wrapper">
+            <svg class="census-svg-chart" viewBox="0 0 600 220" width="100%" height="100%">
+              <!-- Grid lines -->
+              <line x1="30" y1="30" x2="570" y2="30" stroke="#ffffff15" stroke-dasharray="3" />
+              <text x="15" y="34" fill="#ffffff60" font-size="10">550km</text>
+
+              <line x1="30" y1="90" x2="570" y2="90" stroke="#ffffff15" stroke-dasharray="3" />
+              <text x="15" y="94" fill="#ffffff60" font-size="10">450km</text>
+
+              <line x1="30" y1="150" x2="570" y2="150" stroke="#ffffff15" stroke-dasharray="3" />
+              <text x="15" y="154" fill="#ffffff60" font-size="10">350km</text>
+
+              <line x1="30" y1="190" x2="570" y2="190" stroke="#ffffff30" />
+              <text x="15" y="194" fill="#ffffff60" font-size="10">290km</text>
+
+              <!-- Main Trend Path -->
+              <path [attr.d]="svgPath" fill="none" stroke="url(#chart-grad)" stroke-width="3.5" class="chart-path" />
+
+              <!-- Spark Gradient Definitions -->
+              <defs>
+                <linearGradient id="chart-grad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#ff7f50" />
+                  <stop offset="50%" stop-color="#00ffff" />
+                  <stop offset="100%" stop-color="#00ff7f" />
+                </linearGradient>
+              </defs>
+
+              <!-- Plot Points -->
+              @for (pt of chartPoints; track pt.name) {
+                <circle 
+                  [attr.cx]="pt.x" 
+                  [attr.cy]="pt.y" 
+                  r="5.5" 
+                  class="chart-dot" 
+                  [class.chart-dot--hovered]="hoveredPoint()?.name === pt.name"
+                  [attr.fill]="pt.alt >= 540 ? '#00ff7f' : (pt.alt >= 350 ? '#00ffff' : '#ff7f50')"
+                  (mouseenter)="showTooltip($event, pt)"
+                  (mouseleave)="hideTooltip()"
+                />
+              }
+
+              <!-- Tooltip Panel inside SVG -->
+              @if (hoveredPoint(); as tip) {
+                <g class="chart-tooltip-group" [attr.transform]="'translate(' + (tip.x - 70) + ',' + (tip.y - 75) + ')'">
+                  <rect width="140" height="65" rx="6" fill="#101827eb" stroke="#00ffff80" stroke-width="1" />
+                  <text x="70" y="18" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="bold">{{ tip.name }}</text>
+                  <text x="70" y="34" text-anchor="middle" fill="#00ffff" font-size="11" font-weight="bold">{{ tip.alt | number:'1.1-1' }} km</text>
+                  <text x="70" y="50" text-anchor="middle" fill="#ffffff60" font-size="9">{{ tip.date | date:'d/M/yyyy' }}</text>
+                </g>
+              }
+            </svg>
+          </div>
+        </div>
+      }
+
+      <!-- PANEL 2: RECENT LAUNCHES TABLE -->
+      @if (activeTab() === 'launches') {
+        <div class="census-table-wrapper">
+          <div class="table-info">
+            <h3>Últimos Satélites Starlink Detectados</h3>
+            <p>Se listan los Starlinks agregados más recientemente en el catálogo orbital de CelesTrak.</p>
+          </div>
+
+          <table class="census-table">
+            <thead>
+              <tr>
+                <th>NORAD ID</th>
+                <th>Nombre</th>
+                <th>Altitud Calculada</th>
+                <th>Lanzamiento / Época</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (sat of data.recentLaunches; track sat.noradId) {
+                <tr class="census-table__row">
+                  <td class="td-id">#{{ sat.noradId }}</td>
+                  <td class="td-name">🛰️ {{ sat.name }}</td>
+                  <td class="td-alt">{{ sat.altKm | number:'1.1-1' }} km</td>
+                  <td class="td-date">{{ sat.epochMs | date:'dd/MM/yyyy HH:mm' }} UTC</td>
+                  <td>
+                    @if (sat.altKm >= 540) {
+                      <span class="status-pill status-pill--active">Estable</span>
+                    } @else if (sat.altKm >= 340) {
+                      <span class="status-pill status-pill--climbing">Ascenso</span>
+                    } @else {
+                      <span class="status-pill status-pill--decaying">Fuga</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <!-- PANEL 3: CRITICAL DECAY LIST -->
+      @if (activeTab() === 'critical') {
+        <div class="census-table-wrapper">
+          <div class="table-info">
+            <h3>Alerta de Satélites en Caída Orbital Crítica</h3>
+            <p>Satélites de Starlink inactivos u obsoletos cuya órbita ha decaído por debajo de los **340 km** debido a la resistencia de la alta atmósfera, encaminándose a una eventual desintegración (reentrada).</p>
+          </div>
+
+          @if (data.criticalList.length === 0) {
+            <div class="census-empty-state">
+              🟢 No hay satélites Starlink en órbita crítica en este momento.
+            </div>
+          } @else {
+            <table class="census-table">
+              <thead>
+                <tr>
+                  <th>NORAD ID</th>
+                  <th>Nombre</th>
+                  <th>Altitud Crítica</th>
+                  <th>Última Transmisión</th>
+                  <th>Riesgo de Reentrada</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (sat of data.criticalList; track sat.noradId) {
+                  <tr class="census-table__row census-table__row--critical">
+                    <td class="td-id">#{{ sat.noradId }}</td>
+                    <td class="td-name">💥 {{ sat.name }}</td>
+                    <td class="td-alt td-alt--critical">{{ sat.altKm }} km</td>
+                    <td class="td-date">{{ sat.epochMs | date:'dd/MM/yyyy' }}</td>
+                    <td>
+                      @if (sat.altKm < 280) {
+                        <span class="danger-badge danger-badge--high">EXTREMO (< 280km)</span>
+                      } @else {
+                        <span class="danger-badge danger-badge--medium">ELEVADO</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

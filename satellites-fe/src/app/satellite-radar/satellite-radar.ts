@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SatellitePass, PassPoint, CelestialPosition } from '../satellite.model';
+import { SatellitePass } from '../satellite.model';
 
 @Component({
   selector: 'app-satellite-radar',

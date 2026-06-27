@@ -1,14 +1,18 @@
 "use strict";
 
-import express,  { type Request, type Response } from "express";
-import { bindings }                               from "@wasmer/sgp4";
-import { Elements, Constants }                    from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
-import type { Result, Error as SgpError }         from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
-import type { Sgp4 }                              from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
-import { temeToGeodetic }                         from "./coords.js";
-import { openDatabase, getTleByNoradId, getStats, searchSatellites } from "./db.js";
-import { syncAll, startCronJob }                  from "./fetcher.js";
-import { findPasses }                             from "./passes.js";
+import express,  { type Request, type Response, type NextFunction } from "express";
+import helmet                                                        from "helmet";
+import cors                                                          from "cors";
+import rateLimit                                                     from "express-rate-limit";
+import { bindings }                                                  from "@wasmer/sgp4";
+import { Elements, Constants }                                       from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
+import type { Result, Error as SgpError }                            from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
+import type { Sgp4 }                                                 from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
+import { temeToGeodetic }                                            from "./coords.js";
+import { openDatabase, getTleByNoradId, getStats, searchSatellites, getStarlinkCensus } from "./db.js";
+import { syncAll, startCronJob }                                     from "./fetcher.js";
+import { findPasses }                                                from "./passes.js";
+import { logger }                                                    from "./logger.js";
 
 const PORT = process.env["PORT"] ?? 3000;
 
@@ -38,7 +42,7 @@ async function main(): Promise<void> {
   if (syncOnStart) {
     syncAll(db).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
-      console.error("[startup] Sync error:", message);
+      logger.error({ err: message }, "[startup] Sync error");
     });
   }
 
@@ -47,6 +51,17 @@ async function main(): Promise<void> {
   // ─── Express app ─────────────────────────────────────────────────────────
 
   const app = express();
+
+  app.use(helmet());
+  app.use(cors());
+
+  const passesLimiter = rateLimit({
+    windowMs: 60_000,
+    max:      30,
+    standardHeaders: true,
+    legacyHeaders:   false,
+    message: { error: "Too many requests — try again in a minute" },
+  });
 
   const sgp4Cache = new Map<number, { epochMs: number; constants: Constants }>();
 
@@ -130,10 +145,19 @@ async function main(): Promise<void> {
     res.json(getStats(db));
   });
 
+  // GET /api/starlink/census  — Starlink constellation analytical census
+  app.get("/api/starlink/census", (_req: Request, res: Response) => {
+    try {
+      res.json(getStarlinkCensus(db));
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // GET /api/passes  — predict visible passes from an observer location
   //   Required: noradId, lat, lon
   //   Optional: alt (km, default 0), days (default 3, max 10), minEl (deg, default 10)
-  app.get("/api/passes", (req: Request, res: Response) => {
+  app.get("/api/passes", passesLimiter, (req: Request, res: Response) => {
     const noradId = parseInt(req.query["noradId"] as string, 10);
     const lat     = parseFloat(req.query["lat"] as string);
     const lon     = parseFloat(req.query["lon"] as string);
@@ -157,15 +181,18 @@ async function main(): Promise<void> {
     }
   });
 
+  // ─── Global error handler ─────────────────────────────────────────────────
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    logger.error({ err: err.message, stack: err.stack }, "Unhandled error");
+    res.status(500).json({ error: "Internal server error" });
+  });
+
   app.listen(PORT, () => {
-    console.log(`Satellites API listening on http://localhost:${PORT}`);
-    console.log(`  GET /api/satellite/:noradId   — propagate satellite`);
-    console.log(`  GET /api/status               — catalog stats`);
-    console.log(`  GET /api/passes               — predict passes from observer`);
+    logger.info(`Satellites API listening on http://localhost:${PORT}`);
   });
 }
 
 main().catch((err: unknown) => {
-  console.error("Fatal startup error:", err);
+  logger.error({ err }, "Fatal startup error");
   process.exit(1);
 });

@@ -23,7 +23,9 @@ out-tsc/
 !.env.example
 
 # Claude Code local settings (machine-specific permissions)
-.claude/
+.claude/*
+# Track project-level skills and shared Claude config
+!.claude/commands
 
 # Logs
 *.log

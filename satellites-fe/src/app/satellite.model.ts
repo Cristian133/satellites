@@ -84,3 +84,19 @@ export interface PassSelection {
   observerLat: number;
   observerLon: number;
 }
+
+export interface StarlinkCensusEntry {
+  noradId: number;
+  name: string;
+  altKm: number;
+  epochMs: number;
+}
+
+export interface StarlinkCensusResult {
+  total: number;
+  active: number;
+  climbing: number;
+  decaying: number;
+  criticalList: StarlinkCensusEntry[];
+  recentLaunches: StarlinkCensusEntry[];
+}

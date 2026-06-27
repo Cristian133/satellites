@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import {
   catchError,
   distinctUntilChanged,
-  EMPTY,
   interval,
   map,
   Observable,
@@ -12,7 +11,7 @@ import {
   startWith,
   switchMap,
 } from 'rxjs';
-import { FindPassesResult, PositionState, SatelliteApiResponse, SatelliteSummary } from './satellite.model';
+import { FindPassesResult, PositionState, SatelliteApiResponse, SatelliteSummary, StarlinkCensusResult } from './satellite.model';
 
 @Injectable({ providedIn: 'root' })
 export class SatelliteService {
@@ -76,5 +75,9 @@ export class SatelliteService {
     return this.http.get<FindPassesResult>('/api/passes', {
       params: { noradId, lat, lon, alt, days },
     });
+  }
+
+  getStarlinkCensus(): Observable<StarlinkCensusResult> {
+    return this.http.get<StarlinkCensusResult>('/api/starlink/census');
   }
 }

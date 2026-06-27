@@ -9,12 +9,16 @@
 
     <nav class="app-header__nav" aria-label="Navegación principal">
       <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'tracker'" (click)="currentMode.set('tracker')"
-        aria-selected="currentMode() === 'tracker'" role="tab">
+        [attr.aria-selected]="currentMode() === 'tracker'" role="tab">
         🛰️ Rastreador Real-Time
       </button>
       <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'kessler'" (click)="currentMode.set('kessler')"
-        aria-selected="currentMode() === 'kessler'" role="tab">
+        [attr.aria-selected]="currentMode() === 'kessler'" role="tab">
         💥 Simulador Kessler
+      </button>
+      <button class="nav-btn" [class.nav-btn--active]="currentMode() === 'census'" (click)="currentMode.set('census')"
+        [attr.aria-selected]="currentMode() === 'census'" role="tab">
+        📊 Censo Starlink
       </button>
     </nav>
   </header>
@@ -22,9 +26,11 @@
   <!-- Content area -->
   <main class="app-main">
     @if (currentMode() === 'tracker') {
-    <app-satellite-map />
+      <app-satellite-map />
+    } @else if (currentMode() === 'kessler') {
+      <app-kessler-game />
     } @else {
-    <app-kessler-game />
+      <app-starlink-census />
     }
   </main>
 </div>

@@ -183,7 +183,7 @@ function getMoonEcef(jd: number): [number, number, number] {
   const M = (134.963 + 13.064993 * d) % 360;
   const F = (93.272 + 13.229350 * d) % 360;
 
-  const L_rad = L * RAD;
+  const _L_rad = L * RAD; // defined for symmetry; ecliptic formula uses L in degrees
   const M_rad = M * RAD;
   const F_rad = F * RAD;
 

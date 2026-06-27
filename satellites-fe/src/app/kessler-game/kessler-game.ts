@@ -15,7 +15,6 @@ import {
   buildModuleUrl,
   Cartesian3,
   Color,
-  JulianDate,
   Math as CesiumMath,
   PointPrimitive,
   PointPrimitiveCollection,
@@ -149,7 +148,7 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
   // Calcula los pagos esperados para un lanzamiento estándar de 100 satélites
   // en función del nivel de escombros actual y del impuesto regulador.
   readonly payoffMatrix = computed(() => {
-    const debris = this.debrisCount();
+    const _debris = this.debrisCount(); // read to establish reactive dependency
     const risk = this.collisionRisk();
     const tax = this.regulatorTax() * 1000; // a dólares
 
@@ -502,11 +501,11 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
     // Pérdidas por fallos técnicos estándar (durante el año)
     // Satélites baratos fallan 5% anual, eco 1%.
     const userCheapSats = userVol * (1 - userEco / 100);
-    const userEcoSats = userVol * (userEco / 100);
+    const _userEcoSats = userVol * (userEco / 100);
     const betaCheapSats = betaVol * (1 - betaEco / 100);
-    const betaEcoSats = betaVol * (betaEco / 100);
+    const _betaEcoSats = betaVol * (betaEco / 100);
     const gammaCheapSats = gammaVol * (1 - gammaEco / 100);
-    const gammaEcoSats = gammaVol * (gammaEco / 100);
+    const _gammaEcoSats = gammaVol * (gammaEco / 100);
 
     // Nuevas partículas creadas por residuos técnicos estándar
     // Cheap sat fallidos van a escombros. Eco sat fallidos desorbitan a salvo (cero escombros).
@@ -519,7 +518,6 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
     let userCollisions = 0;
     let betaCollisions = 0;
     let gammaCollisions = 0;
-    let totalCollisions = 0;
 
     const satsAlphaBefore = this.alpha().activeSatellites + userVol;
     const satsBetaBefore = this.beta().activeSatellites + betaVol;
@@ -535,7 +533,7 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
     for (let i = 0; i < satsGammaBefore; i++) {
       if (Math.random() < cRisk) gammaCollisions++;
     }
-    totalCollisions = userCollisions + betaCollisions + gammaCollisions;
+    const totalCollisions = userCollisions + betaCollisions + gammaCollisions;
 
     // Nuevos escombros generados por colisiones (Kessler cascade)
     const newCollisionDebris = totalCollisions * 150;
@@ -612,7 +610,7 @@ export class KesslerGame implements AfterViewInit, OnDestroy {
     const gammaResults = calcTurnProfit(this.gamma().activeSatellites, gammaVol, gammaEco, gammaCollisions, gammaClean);
 
     // Registrar logs de ganancias
-    newLogs.push(`Finanzas de AlphaNet: Ganancia del turno: \$${(userResults.profit / 1000000).toFixed(2)}M. Satélites activos: ${userResults.finalSats}.`);
+    newLogs.push(`Finanzas de AlphaNet: Ganancia del turno: $${(userResults.profit / 1000000).toFixed(2)}M. Satélites activos: ${userResults.finalSats}.`);
 
     // Actualizar estados reactivos
     this.alpha.update((s) => ({

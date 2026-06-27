@@ -20,7 +20,24 @@
     } @else if (query()) {
       <button class="palette__clear" (click)="onQueryChange('')">✕</button>
     }
+    <button class="palette__help-btn" (click)="toggleHelp()" title="Ayuda de búsqueda">❓</button>
   </div>
+
+  <!-- Help panel -->
+  @if (showHelp()) {
+    <div class="palette__help-panel">
+      <div class="palette__help-header">
+        <h4>💡 Guía de Búsqueda Orbital</h4>
+        <button class="palette__help-close" (click)="toggleHelp()">✕</button>
+      </div>
+      <ul class="palette__help-list">
+        <li><strong>Filtrado Directo:</strong> Escribe el nombre del satélite (ej: <code>ISS</code>, <code>STARLINK</code>) o su <strong>NORAD ID</strong> de 5 dígitos (ej: <code>25544</code>) para encontrarlo al instante.</li>
+        <li><strong>Límite de Rendimiento:</strong> Mostramos hasta <strong>120 resultados</strong> a la vez para mantener el mapa 3D fluido y evitar retrasos en el navegador. ¡Escribe para acotar la lista!</li>
+        <li><strong>Búsqueda Inteligente:</strong> El sistema es tolerante a errores: soporta términos en plural (ej: <code>starlinks</code>) y convierte automáticamente espacios a guiones (ej: <code>starlink 1008</code> buscará de forma transparente <code>STARLINK-1008</code>).</li>
+        <li><strong>Nomenclatura y "Trencitos" (gX-Y):</strong> Nombres como <code>g6-42</code> de ISS Detector indican el <strong>Grupo</strong> (órbita) y el lanzamiento. Los satélites recién lanzados vuelan muy juntos a baja altura formando un espectacular <strong>"trencito de luces"</strong>. Puedes verlos en detalle en nuestra pestaña <strong>📊 Censo Starlink</strong>.</li>
+      </ul>
+    </div>
+  }
 
   <!-- Filter bar -->
   @if (results().length > 0) {

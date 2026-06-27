@@ -4,6 +4,7 @@ import cron                                        from "node-cron";
 import type Database                               from "better-sqlite3";
 import { parseCatalog }                            from "./tle-parser.js";
 import { upsertTles, startSyncLog, finishSyncLog } from "./db.js";
+import { logger }                                  from "./logger.js";
 
 interface Source {
   name: string;
@@ -53,7 +54,7 @@ async function syncSource(db: Database.Database, source: Source): Promise<SyncRe
     text = await fetchText(source.url);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`${tag} fetch failed: ${message}`);
+    logger.error({ source: source.name, err: message }, `${tag} fetch failed`);
     finishSyncLog(db, logId, { totalParsed: 0, inserted: 0, updated: 0, parseErrors: 1, status: "error" });
     return { inserted: 0, updated: 0, parseErrors: 1 };
   }
@@ -61,22 +62,20 @@ async function syncSource(db: Database.Database, source: Source): Promise<SyncRe
   const { tles, parseErrors, noNewData } = parseCatalog(text);
 
   if (noNewData) {
-    console.log(`${tag} no new data since last fetch — skipping`);
+    logger.info({ source: source.name }, `${tag} no new data since last fetch — skipping`);
     finishSyncLog(db, logId, { totalParsed: 0, inserted: 0, updated: 0, parseErrors: 0, status: "skipped" });
     return { inserted: 0, updated: 0, parseErrors: 0 };
   }
 
   if (parseErrors.length > 0) {
-    console.warn(`${tag} ${parseErrors.length} TLE block(s) rejected:`);
+    logger.warn({ source: source.name, count: parseErrors.length }, `${tag} TLE block(s) rejected`);
     parseErrors.slice(0, 5).forEach((e) =>
-      console.warn(`  "${e.name || "?"}" — ${e.errors.join("; ")}`)
+      logger.warn({ name: e.name || "?", errors: e.errors.join("; ") }, "  rejected TLE")
     );
-    if (parseErrors.length > 5)
-      console.warn(`  … and ${parseErrors.length - 5} more`);
   }
 
   const { inserted, updated } = upsertTles(db, tles, source.name);
-  console.log(`${tag} parsed ${tles.length}, inserted ${inserted}, updated ${updated}, rejected ${parseErrors.length}`);
+  logger.info({ source: source.name, parsed: tles.length, inserted, updated, rejected: parseErrors.length }, `${tag} sync complete`);
 
   finishSyncLog(db, logId, {
     totalParsed: tles.length,
@@ -92,7 +91,7 @@ async function syncSource(db: Database.Database, source: Source): Promise<SyncRe
 // ─── Sync SATCAT (Country mappings) ──────────────────────────────────────────
 
 export async function syncSatcat(db: Database.Database): Promise<void> {
-  console.log("[sync] Syncing SATCAT country registry...");
+  logger.info("[sync] Syncing SATCAT country registry...");
   try {
     const text = await fetchText("https://celestrak.org/pub/satcat.csv");
     const lines = text.split(/\r?\n/);
@@ -103,7 +102,7 @@ export async function syncSatcat(db: Database.Database): Promise<void> {
     const ownerIdx = headers.indexOf("OWNER");
 
     if (noradIdx === -1 || ownerIdx === -1) {
-      console.error("[sync] SATCAT CSV columns not found in header:", lines[0]);
+      logger.error({ header: lines[0] }, "[sync] SATCAT CSV columns not found in header");
       return;
     }
 
@@ -133,21 +132,21 @@ export async function syncSatcat(db: Database.Database): Promise<void> {
 
     if (batch.length > 0) {
       run(batch);
-      console.log(`[sync] Successfully synced ${batch.length} SATCAT entries.`);
+      logger.info({ count: batch.length }, "[sync] SATCAT entries synced");
     }
   } catch (err) {
-    console.error("[sync] SATCAT sync failed:", err);
+    logger.error({ err }, "[sync] SATCAT sync failed");
   }
 }
 
 // ─── Full sync (all sources in parallel) ─────────────────────────────────────
 
 export async function syncAll(db: Database.Database): Promise<SyncResult> {
-  console.log(`[sync] Starting full catalog sync (${SOURCES.length} sources)`);
+  logger.info({ sources: SOURCES.length }, "[sync] Starting full catalog sync");
 
   // First sync the SATCAT country mappings
   await syncSatcat(db).catch((err: unknown) => {
-    console.error("[sync] SATCAT sync failed:", err);
+    logger.error({ err }, "[sync] SATCAT sync failed");
   });
 
   const results: SyncResult[] = [];
@@ -169,9 +168,7 @@ export async function syncAll(db: Database.Database): Promise<SyncResult> {
     { inserted: 0, updated: 0, parseErrors: 0 }
   );
 
-  console.log(
-    `[sync] Complete — total inserted: ${totals.inserted}, updated: ${totals.updated}, errors: ${totals.parseErrors}`
-  );
+  logger.info(totals, "[sync] Complete");
   return totals;
 }
 
@@ -181,19 +178,19 @@ export function startCronJob(db: Database.Database): void {
   const schedule = process.env["SYNC_SCHEDULE"] ?? "0 */6 * * *";
 
   if (!cron.validate(schedule)) {
-    console.error(`[cron] Invalid SYNC_SCHEDULE expression: "${schedule}"`);
+    logger.error({ schedule }, "[cron] Invalid SYNC_SCHEDULE expression");
     return;
   }
 
   cron.schedule(schedule, async () => {
-    console.log(`[cron] Scheduled sync triggered (${new Date().toISOString()})`);
+    logger.info({ time: new Date().toISOString() }, "[cron] Scheduled sync triggered");
     try {
       await syncAll(db);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error("[cron] Sync error:", message);
+      logger.error({ err: message }, "[cron] Sync error");
     }
   });
 
-  console.log(`[cron] TLE sync scheduled: "${schedule}"`);
+  logger.info({ schedule }, "[cron] TLE sync scheduled");
 }

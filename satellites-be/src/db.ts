@@ -273,8 +273,20 @@ export function searchSatellites(
   q:     string,
   limit  = 120,
 ): SatelliteSummary[] {
-  const term  = `%${q}%`;
-  const start = `${q.toUpperCase()}%`;
+  let processedQ = q.trim();
+
+  // 1. Convertir "starlinks" en plural a "starlink" singular para evitar fallos de búsqueda
+  if (processedQ.toLowerCase() === 'starlinks') {
+    processedQ = 'starlink';
+  }
+
+  // 2. Convertir espacios a guiones para búsquedas numéricas de Starlink (ej. "starlink 1008" -> "starlink-1008")
+  if (/^starlinks?\s+\d+$/i.test(processedQ)) {
+    processedQ = processedQ.replace(/\s+/, '-').replace(/starlinks/i, 'starlink');
+  }
+
+  const term  = `%${processedQ}%`;
+  const start = `${processedQ.toUpperCase()}%`;
   const rows  = stmts(db).search.all(term, term, start, limit) as SearchRow[];
   return rows.map(r => ({
     noradId:     r.norad_id,
@@ -325,4 +337,70 @@ export function finishSyncLog(db: Database.Database, id: number, p: FinishSyncPa
     p.status,
     id,
   );
+}
+
+export interface StarlinkCensusResult {
+  total: number;
+  active: number;
+  climbing: number;
+  decaying: number;
+  criticalList: { noradId: number; name: string; altKm: number; epochMs: number }[];
+  recentLaunches: { noradId: number; name: string; altKm: number; epochMs: number }[];
+}
+
+export function getStarlinkCensus(db: Database.Database): StarlinkCensusResult {
+  const rows = db.prepare(`
+    SELECT norad_id, name, mean_motion, epoch_ms 
+      FROM tles 
+     WHERE group_name = 'Starlink'
+  `).all() as { norad_id: number; name: string; mean_motion: number; epoch_ms: number }[];
+
+  let total = 0;
+  let active = 0;
+  let climbing = 0;
+  let decaying = 0;
+  const criticalList: { noradId: number; name: string; altKm: number; epochMs: number }[] = [];
+  const allSatellites: { noradId: number; name: string; altKm: number; epochMs: number }[] = [];
+
+  const G_M = 7.537125e13;
+
+  for (const r of rows) {
+    if (r.mean_motion <= 0) continue;
+    total++;
+    const a_km = Math.pow(G_M / (r.mean_motion * r.mean_motion), 1 / 3);
+    const altKm = Math.round((a_km - 6371) * 10) / 10;
+
+    const entry = {
+      noradId: r.norad_id,
+      name: r.name,
+      altKm,
+      epochMs: r.epoch_ms,
+    };
+
+    allSatellites.push(entry);
+
+    if (altKm >= 540) {
+      active++;
+    } else if (altKm >= 340) {
+      climbing++;
+    } else {
+      decaying++;
+      criticalList.push(entry);
+    }
+  }
+
+  criticalList.sort((a, b) => a.altKm - b.altKm);
+
+  const recentLaunches = [...allSatellites]
+    .sort((a, b) => b.epochMs - a.epochMs)
+    .slice(0, 15);
+
+  return {
+    total,
+    active,
+    climbing,
+    decaying,
+    criticalList: criticalList.slice(0, 10),
+    recentLaunches,
+  };
 }

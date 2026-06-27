@@ -115,6 +115,11 @@ export class SatelliteSearch implements OnInit, OnDestroy {
   readonly loading  = signal(false);
   readonly activeIdx = signal(-1);
   readonly selectedCountry = signal<string>('');
+  readonly showHelp = signal(false);
+
+  toggleHelp(): void {
+    this.showHelp.set(!this.showHelp());
+  }
 
   readonly availableCountries = computed(() => {
     const counts = new Map<string, number>();

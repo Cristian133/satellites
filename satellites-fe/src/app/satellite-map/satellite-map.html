@@ -48,6 +48,11 @@
     }
 
     @if (geodetic) {
+      @if (isAscendingStarlink) {
+        <div class="hud__ascent-badge" title="Este satélite Starlink está elevando su órbita tras ser lanzado recientemente">
+          🚀 ASCENSO ACTIVO
+        </div>
+      }
       <div class="hud__grid">
         <div class="hud__card">
           <span class="hud__card-label">Lat</span>
@@ -205,7 +210,7 @@
             <span class="pass-detail__quality">{{ elevationQuality(sel.pass.maxElevation_deg) }}</span>
           </span>
         </div>
-        @if (sel.pass.magnitude != null) {
+        @if (sel.pass.magnitude !== null) {
           <div class="pass-detail__meta-item">
             <span class="pass-detail__meta-label">Magnitud</span>
             <span class="pass-detail__meta-value" [class.pass-detail__meta-bright]="sel.pass.magnitude <= 2">
@@ -216,7 +221,7 @@
         <div class="pass-detail__meta-item">
           <span class="pass-detail__meta-label">Visibilidad</span>
           <span class="pass-detail__meta-value" [class.pass-detail__meta-visible]="sel.pass.visible">
-            {{ sel.pass.visible ? '● visible' : (sel.pass.magnitude != null ? '● iluminado' : '● en sombra') }}
+            {{ sel.pass.visible ? '● visible' : (sel.pass.magnitude !== null ? '● iluminado' : '● en sombra') }}
           </span>
         </div>
         <div class="pass-detail__meta-item">

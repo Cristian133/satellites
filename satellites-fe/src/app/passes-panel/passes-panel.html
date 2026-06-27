@@ -92,7 +92,7 @@
                       </span>
                       <span class="pass-sep">·</span>
                       <span class="pass-dur">{{ formatDuration(pass.duration_s) }}</span>
-                      @if (pass.magnitude != null) {
+                      @if (pass.magnitude !== null) {
                         <span class="pass-sep">·</span>
                         <span class="pass-mag" [class.pass-mag--bright]="pass.magnitude <= 2">
                           ★ {{ pass.magnitude >= 0 ? '+' : '' }}{{ pass.magnitude }}

@@ -334,6 +334,17 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
       footprintEntity.position = this.groundSampledPos as any;
     }
     this.footprintRadiusM = 0;
+
+    // Limpiar entidades de simulación dinámica de Starlink/Gateway
+    this.viewer.entities.removeById('starlink-neighbor-ahead');
+    this.viewer.entities.removeById('starlink-neighbor-behind');
+    this.viewer.entities.removeById('starlink-laser-ahead');
+    this.viewer.entities.removeById('starlink-laser-behind');
+    this.viewer.entities.removeById('sim-observer');
+    this.viewer.entities.removeById('sim-observer-cone');
+    this.viewer.entities.removeById('sim-observer-link');
+    this.viewer.entities.removeById('sim-gateway');
+    this.viewer.entities.removeById('sim-gateway-link');
   }
 
   private addSample(data: SatelliteApiResponse): void {
@@ -383,6 +394,301 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
           duration: 2,
         });
       }
+    }
+
+    this.updateStarlinkSimulation(data);
+  }
+
+  private getNeighborPosition(data: SatelliteApiResponse, timeOffsetS: number): Cartesian3 | null {
+    try {
+      const date = new Date(new Date(data.propagation.timestamp).getTime() + timeOffsetS * 1000);
+      const satrec = twoline2satrec(data.tle.line1, data.tle.line2);
+      const pv = propagate(satrec, date);
+      if (!pv || !pv.position || typeof pv.position === 'boolean') return null;
+      const gst = gstime(date);
+      const ecf = eciToEcf(pv.position, gst);
+      return new Cartesian3(ecf.x * 1000, ecf.y * 1000, ecf.z * 1000);
+    } catch {
+      return null;
+    }
+  }
+
+  private updateStarlinkSimulation(data: SatelliteApiResponse): void {
+    if (!this.viewer) return;
+
+    const isStarlink = data.satellite.name.toUpperCase().includes('STARLINK');
+
+    // ─── 1. SIMULACIÓN DE ENLACES LÁSER (VECINOS VIRTUALES) ───
+    const aheadId = 'starlink-neighbor-ahead';
+    const behindId = 'starlink-neighbor-behind';
+    const laserAheadId = 'starlink-laser-ahead';
+    const laserBehindId = 'starlink-laser-behind';
+
+    if (isStarlink) {
+      const posAhead = this.getNeighborPosition(data, 120); // 2 minutos adelante
+      const posBehind = this.getNeighborPosition(data, -120); // 2 minutos atrás
+
+      // Neighbor Ahead
+      if (posAhead) {
+        const nAhead = this.viewer.entities.getById(aheadId);
+        if (!nAhead) {
+          this.viewer.entities.add({
+            id: aheadId,
+            position: posAhead as any,
+            point: {
+              pixelSize: 6,
+              color: Color.fromCssColorString('#00ffff'),
+              outlineColor: Color.BLACK,
+              outlineWidth: 1,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            },
+            label: {
+              text: `${data.satellite.name} (Link A)`,
+              font: '10px sans-serif',
+              fillColor: Color.fromCssColorString('#00ffff'),
+              pixelOffset: new Cartesian2(0, 15),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            }
+          });
+        } else {
+          nAhead.position = posAhead as any;
+        }
+
+        // Laser line Ahead
+        const laserAhead = this.viewer.entities.getById(laserAheadId);
+        if (!laserAhead) {
+          this.viewer.entities.add({
+            id: laserAheadId,
+            polyline: {
+              positions: new CallbackProperty(() => {
+                const sPos = this.sampledPos.getValue(JulianDate.now());
+                const naPos = nAhead?.position?.getValue(JulianDate.now());
+                if (!sPos || !naPos) return [];
+                return [sPos, naPos];
+              }, false),
+              width: 2.0,
+              material: new PolylineDashMaterialProperty({
+                color: Color.fromCssColorString('#00ffffcc'),
+                dashLength: 8,
+              }),
+            }
+          });
+        }
+      }
+
+      // Neighbor Behind
+      if (posBehind) {
+        const nBehind = this.viewer.entities.getById(behindId);
+        if (!nBehind) {
+          this.viewer.entities.add({
+            id: behindId,
+            position: posBehind as any,
+            point: {
+              pixelSize: 6,
+              color: Color.fromCssColorString('#00ffff'),
+              outlineColor: Color.BLACK,
+              outlineWidth: 1,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            },
+            label: {
+              text: `${data.satellite.name} (Link B)`,
+              font: '10px sans-serif',
+              fillColor: Color.fromCssColorString('#00ffff'),
+              pixelOffset: new Cartesian2(0, 15),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            }
+          });
+        } else {
+          nBehind.position = posBehind as any;
+        }
+
+        // Laser line Behind
+        const laserBehind = this.viewer.entities.getById(laserBehindId);
+        if (!laserBehind) {
+          this.viewer.entities.add({
+            id: laserBehindId,
+            polyline: {
+              positions: new CallbackProperty(() => {
+                const sPos = this.sampledPos.getValue(JulianDate.now());
+                const nbPos = nBehind?.position?.getValue(JulianDate.now());
+                if (!sPos || !nbPos) return [];
+                return [sPos, nbPos];
+              }, false),
+              width: 2.0,
+              material: new PolylineDashMaterialProperty({
+                color: Color.fromCssColorString('#00ffffcc'),
+                dashLength: 8,
+              }),
+            }
+          });
+        }
+      }
+    } else {
+      this.viewer.entities.removeById(aheadId);
+      this.viewer.entities.removeById(behindId);
+      this.viewer.entities.removeById(laserAheadId);
+      this.viewer.entities.removeById(laserBehindId);
+    }
+
+    // ─── 2. SIMULACIÓN DE CONEXIÓN CON OBSERVADOR Y GATEWAY (SI HAY PASE SELECCIONADO) ───
+    const obsSel = this.selectedPass();
+    const obsId = 'sim-observer';
+    const obsConeId = 'sim-observer-cone';
+    const obsLinkId = 'sim-observer-link';
+    const gatewayId = 'sim-gateway';
+    const gatewayLinkId = 'sim-gateway-link';
+
+    if (obsSel) {
+      const lat = obsSel.observerLat;
+      const lon = obsSel.observerLon;
+      const alt = data.state.geodetic.alt_km;
+      const observerPos = Cartesian3.fromDegrees(lon, lat, 0);
+
+      // 1. Dibujar Observador (Antena)
+      if (!this.viewer.entities.getById(obsId)) {
+        this.viewer.entities.add({
+          id: obsId,
+          position: observerPos,
+          point: {
+            pixelSize: 12,
+            color: Color.fromCssColorString('#10b981'),
+            outlineColor: Color.WHITE,
+            outlineWidth: 2,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          label: {
+            text: 'Tu Antena Starlink',
+            font: 'bold 12px sans-serif',
+            fillColor: Color.fromCssColorString('#10b981'),
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cartesian2(0, -20),
+            heightReference: HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          }
+        });
+      }
+
+      // 2. Dibujar Cono de Cobertura Translúcido
+      const altM = alt * 1000;
+      const conePosition = Cartesian3.fromDegrees(lon, lat, altM / 2);
+
+      const coneEntity = this.viewer.entities.getById(obsConeId);
+      if (!coneEntity) {
+        this.viewer.entities.add({
+          id: obsConeId,
+          position: conePosition,
+          cylinder: {
+            length: altM,
+            topRadius: altM * Math.tan(35 * Math.PI / 180),
+            bottomRadius: 0,
+            material: Color.fromCssColorString('#10b98115'),
+            outline: true,
+            outlineColor: Color.fromCssColorString('#10b98140'),
+            outlineWidth: 1.0,
+          }
+        });
+      } else {
+        coneEntity.position = conePosition as any;
+        if (coneEntity.cylinder) {
+          coneEntity.cylinder.length = altM as any;
+          coneEntity.cylinder.topRadius = (altM * Math.tan(35 * Math.PI / 180)) as any;
+        }
+      }
+
+      // 3. Conexión activa si el satélite está a una distancia viable (< 1800 km)
+      const now = JulianDate.now();
+      const satPos = this.sampledPos.getValue(now);
+      let isViable = false;
+
+      if (satPos) {
+        const dist = Cartesian3.distance(satPos, observerPos) / 1000; // en km
+        isViable = dist < 1800;
+      }
+
+      const obsLink = this.viewer.entities.getById(obsLinkId);
+      if (isViable && satPos) {
+        if (!obsLink) {
+          this.viewer.entities.add({
+            id: obsLinkId,
+            polyline: {
+              positions: new CallbackProperty(() => {
+                const sPos = this.sampledPos.getValue(JulianDate.now());
+                if (!sPos) return [];
+                return [observerPos, sPos];
+              }, false),
+              width: 3.0,
+              material: Color.fromCssColorString('#10b981'),
+            }
+          });
+        }
+      } else {
+        if (obsLink) {
+          this.viewer.entities.remove(obsLink);
+        }
+      }
+
+      // 4. Estación Terrestre / Gateway Virtual a ~250km
+      const gatewayPos = Cartesian3.fromDegrees(lon + 2.5, lat - 0.5, 0);
+      if (!this.viewer.entities.getById(gatewayId)) {
+        this.viewer.entities.add({
+          id: gatewayId,
+          position: gatewayPos,
+          point: {
+            pixelSize: 10,
+            color: Color.fromCssColorString('#ef4444'),
+            outlineColor: Color.WHITE,
+            outlineWidth: 1.5,
+            heightReference: HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          label: {
+            text: 'Estación Gateway SpaceX',
+            font: '11px sans-serif',
+            fillColor: Color.fromCssColorString('#ef4444'),
+            outlineColor: Color.BLACK,
+            outlineWidth: 1.5,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cartesian2(0, 15),
+            heightReference: HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          }
+        });
+      }
+
+      // 5. Downlink animado
+      const gwLink = this.viewer.entities.getById(gatewayLinkId);
+      if (isViable && satPos) {
+        if (!gwLink) {
+          this.viewer.entities.add({
+            id: gatewayLinkId,
+            polyline: {
+              positions: new CallbackProperty(() => {
+                const sPos = this.sampledPos.getValue(JulianDate.now());
+                if (!sPos) return [];
+                return [sPos, gatewayPos];
+              }, false),
+              width: 2.0,
+              material: new PolylineDashMaterialProperty({
+                color: Color.fromCssColorString('#ef4444cc'),
+                dashLength: 12,
+              })
+            }
+          });
+        }
+      } else {
+        if (gwLink) {
+          this.viewer.entities.remove(gwLink);
+        }
+      }
+    } else {
+      this.viewer.entities.removeById(obsId);
+      this.viewer.entities.removeById(obsConeId);
+      this.viewer.entities.removeById(obsLinkId);
+      this.viewer.entities.removeById(gatewayId);
+      this.viewer.entities.removeById(gatewayLinkId);
     }
   }
 
@@ -548,6 +854,13 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   get lastUpdate() {
     const ts = this.posState().data?.propagation.timestamp;
     return ts ? new Date(ts) : null;
+  }
+  get isAscendingStarlink(): boolean {
+    const data = this.posState().data;
+    if (!data) return false;
+    const name = data.satellite.name.toUpperCase();
+    const alt = data.state.geodetic.alt_km;
+    return name.includes('STARLINK') && alt < 450;
   }
 
   toggleTracking(): void {
