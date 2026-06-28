@@ -11,7 +11,7 @@ import {
   startWith,
   switchMap,
 } from 'rxjs';
-import { FindPassesResult, PositionState, SatelliteApiResponse, SatelliteSummary, StarlinkCensusResult } from '../models/satellite.model';
+import { FindPassesResult, PositionState, SatelliteState, SatelliteSummary, StarlinkCensusResult } from '../models/satellite.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -36,7 +36,7 @@ export class SatelliteService {
     return interval(3000).pipe(
       startWith(0),
       switchMap(() =>
-        this.http.get<SatelliteApiResponse>(`${this.base}/api/satellite/${noradId}`).pipe(
+        this.http.get<SatelliteState>(`${this.base}/api/satellite/${noradId}`).pipe(
           map(
             (data): PositionState => ({ data, error: null, loading: false })
           ),

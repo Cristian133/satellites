@@ -140,9 +140,15 @@ El CD y TLS requieren un servidor real apuntando a un dominio — no tienen sent
 | Fase 1 — Estructura BE | ~18 h | ✅ Completada |
 | Fase 2 — Estructura FE | ~18 h | ✅ Completada |
 | Fase 3 — Performance | ~16 h | ✅ Completada |
-| Fase 4 — Observabilidad | ~14 h | Alta |
-| Fase 5 — Release y Despliegue | ~24 h | Media |
+| Fase 4 — Observabilidad | ~14 h | ✅ Completada |
+| Fase 5 — Release y Despliegue | ~24 h | ✅ Completada |
 | **Total** | **~104 h** | |
+
+## Nota: 5.7 — SQLite → PostgreSQL (decisión)
+
+SQLite en modo WAL + backup diario a S3/Backblaze (5.4) es suficiente mientras el backend
+corra en una sola instancia. PostgreSQL solo tiene sentido si se añade escalado horizontal
+(múltiples contenedores BE detrás de un balanceador). No se requiere migración ahora.
 
 ## Orden de ejecución
 

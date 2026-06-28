@@ -1,5 +1,6 @@
 services:
   backend:
+    image: ghcr.io/cristian133/satellites-be:latest
     build:
       context: ./satellites-be
       dockerfile: Dockerfile
@@ -20,6 +21,7 @@ services:
       retries: 3
 
   nginx:
+    image: ghcr.io/cristian133/satellites-nginx:latest
     build:
       context: .
       dockerfile: nginx/Dockerfile
@@ -29,6 +31,25 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+  backup:
+    profiles: ["backup"]
+    image: alpine:3.21
+    volumes:
+      - satellites_data:/data:ro
+      - ./scripts/backup-sqlite.sh:/backup.sh:ro
+    environment:
+      - DB_PATH=/data/satellites.db
+      - BACKUP_REMOTE=${BACKUP_REMOTE}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+    # Installs sqlite and rclone on first run, then schedules daily backup at 02:00
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache sqlite rclone && \
+        echo "0 2 * * * /backup.sh >> /var/log/backup.log 2>&1" | crontab - && \
+        crond -f -d 8
 
   prometheus:
     image: prom/prometheus:v3.1.0
@@ -60,3 +81,4 @@ volumes:
   satellites_data:
   prometheus_data:
   grafana_data:
+  traefik_certs:

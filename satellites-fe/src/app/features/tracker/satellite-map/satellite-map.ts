@@ -44,7 +44,7 @@ import {
 import { twoline2satrec, propagate, gstime, eciToEcf, eciToGeodetic, degreesLat, degreesLong } from 'satellite.js';
 
 import { SatelliteService } from '../../../core/services/satellite.service';
-import { PositionState, SatelliteApiResponse, PassSelection } from '../../../core/models/satellite.model';
+import { PositionState, SatelliteState, PassSelection } from '../../../core/models/satellite.model';
 import { PassesPanel } from '../passes-panel/passes-panel';
 import { SatelliteSearch } from '../satellite-search/satellite-search';
 import { PerformanceOverlay } from '../performance-overlay/performance-overlay';
@@ -320,18 +320,21 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     this.initSampledPosition();
     const entity = this.viewer.entities.getById('satellite');
     if (entity) {
-      entity.position = this.sampledPos as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      entity.position = this.sampledPos as any; // Cesium: Entity.position setter is typed as SampledPositionProperty but accepts PositionProperty subclasses
       if (entity.label?.text instanceof ConstantProperty) {
         entity.label.text.setValue('');
       }
     }
     const groundEntity = this.viewer.entities.getById('ground-projection');
     if (groundEntity) {
-      groundEntity.position = this.groundSampledPos as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      groundEntity.position = this.groundSampledPos as any; // Cesium: same setter type gap
     }
     const footprintEntity = this.viewer.entities.getById('footprint');
     if (footprintEntity) {
-      footprintEntity.position = this.groundSampledPos as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      footprintEntity.position = this.groundSampledPos as any; // Cesium: same setter type gap
     }
     this.footprintRadiusM = 0;
 
@@ -347,7 +350,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     this.viewer.entities.removeById('sim-gateway-link');
   }
 
-  private addSample(data: SatelliteApiResponse): void {
+  private addSample(data: SatelliteState): void {
     if (!this.viewer || !this.sampledPos) return;
 
     // Reciclar la trayectoria cada 100 ticks (~5 minutos de polling) para evitar fugas de memoria y centrar el trazo
@@ -399,7 +402,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     this.updateStarlinkSimulation(data);
   }
 
-  private getNeighborPosition(data: SatelliteApiResponse, timeOffsetS: number): Cartesian3 | null {
+  private getNeighborPosition(data: SatelliteState, timeOffsetS: number): Cartesian3 | null {
     try {
       const date = new Date(new Date(data.propagation.timestamp).getTime() + timeOffsetS * 1000);
       const satrec = twoline2satrec(data.tle.line1, data.tle.line2);
@@ -413,7 +416,7 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
     }
   }
 
-  private updateStarlinkSimulation(data: SatelliteApiResponse): void {
+  private updateStarlinkSimulation(data: SatelliteState): void {
     if (!this.viewer) return;
 
     const isStarlink = data.satellite.name.toUpperCase().includes('STARLINK');
@@ -434,7 +437,8 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         if (!nAhead) {
           this.viewer.entities.add({
             id: aheadId,
-            position: posAhead as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            position: posAhead as any, // Cesium: Entity options position is typed as PositionProperty; Cartesian3 is valid at runtime
             point: {
               pixelSize: 6,
               color: Color.fromCssColorString('#00ffff'),
@@ -451,7 +455,8 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
             }
           });
         } else {
-          nAhead.position = posAhead as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          nAhead.position = posAhead as any; // Cesium: same Entity.position setter gap
         }
 
         // Laser line Ahead
@@ -482,7 +487,8 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
         if (!nBehind) {
           this.viewer.entities.add({
             id: behindId,
-            position: posBehind as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            position: posBehind as any, // Cesium: same Entity options position gap
             point: {
               pixelSize: 6,
               color: Color.fromCssColorString('#00ffff'),
@@ -499,7 +505,8 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
             }
           });
         } else {
-          nBehind.position = posBehind as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          nBehind.position = posBehind as any; // Cesium: same Entity.position setter gap
         }
 
         // Laser line Behind
@@ -591,10 +598,13 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
           }
         });
       } else {
-        coneEntity.position = conePosition as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        coneEntity.position = conePosition as any; // Cesium: Entity.position setter gap
         if (coneEntity.cylinder) {
-          coneEntity.cylinder.length = altM as any;
-          coneEntity.cylinder.topRadius = (altM * Math.tan(35 * Math.PI / 180)) as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          coneEntity.cylinder.length = altM as any; // Cesium: CylinderGraphics properties are typed as Property but accept plain numbers at runtime
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          coneEntity.cylinder.topRadius = (altM * Math.tan(35 * Math.PI / 180)) as any; // Cesium: same Property/number gap
         }
       }
 
@@ -809,15 +819,17 @@ export class SatelliteMap implements AfterViewInit, OnDestroy {
   }
 
   private addSunEntity(): void {
+    // Cesium: CallbackProperty returning Cartesian3 is valid for position but typed as generic Property — cast required
+    const sunPosition = new CallbackProperty((time: unknown, result: unknown) => {
+      if (!time) return result ?? Cartesian3.ZERO;
+      const date = JulianDate.toDate(time as ReturnType<typeof JulianDate.now>);
+      const { lat, lon } = this.getSunSubsolarPoint(date);
+      return Cartesian3.fromDegrees(lon, lat, 0, this.viewer.scene.globe.ellipsoid, result as Cartesian3);
+    }, false) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     this.viewer.entities.add({
       id:   'sun-position',
       show: false,
-      position: new CallbackProperty((time, result) => {
-        if (!time) return result ?? Cartesian3.ZERO;
-        const date = JulianDate.toDate(time);
-        const { lat, lon } = this.getSunSubsolarPoint(date);
-        return Cartesian3.fromDegrees(lon, lat, 0, this.viewer.scene.globe.ellipsoid, result);
-      }, false) as any,
+      position: sunPosition,
       billboard: {
         image:  SUN_ICON,
         width:  26,

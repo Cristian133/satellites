@@ -5,6 +5,7 @@ import { Elements, Constants } from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
 import type { Result, Error as SgpError, Sgp4 } from "@wasmer/sgp4/src/bindings/sgp4/sgp4";
 import { temeToGeodetic }   from "../math/coords.js";
 import type { TleRow }      from "../types/index.js";
+import type { SatelliteState } from "@satellites/types";
 
 // ─── WASM lazy singleton ─────────────────────────────────────────────────────
 
@@ -38,16 +39,7 @@ function minutesSinceTleEpoch(line1: string): number {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export interface SatelliteState {
-  satellite:   { noradId: number; name: string };
-  tle:         { line1: string; line2: string; epochMs: number };
-  propagation: { t_minutes: number; timestamp: string };
-  state: {
-    teme:     { position_km: { x: number; y: number; z: number }; velocity_km_s: { x: number; y: number; z: number } };
-    ecef:     { position_km: { x: number; y: number; z: number } };
-    geodetic: { lat_deg: number; lon_deg: number; alt_km: number };
-  };
-}
+export type { SatelliteState };
 
 export async function propagateSatellite(noradId: number, row: TleRow): Promise<SatelliteState> {
   const wasm = await getWasm();

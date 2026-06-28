@@ -14,7 +14,8 @@
     "demo-agents": "tsx ../scripts/agents-demo.ts",
     "benchmark:micro": "tsx src/benchmark/micro.ts",
     "benchmark:db": "tsx src/benchmark/db.ts",
-    "benchmark:load": "tsx src/benchmark/load.ts"
+    "benchmark:load": "tsx src/benchmark/load.ts",
+    "openapi:export": "tsx scripts/export-openapi.ts"
   },
   "keywords": [],
   "author": "",
