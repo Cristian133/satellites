@@ -1,3 +1,17 @@
+// Re-export shared API contract types — single source of truth in @satellites/types
+import type { SatellitePass } from '@satellites/types';
+export type {
+  SatelliteSummary,
+  PassPoint,
+  CelestialPosition,
+  SatellitePass,
+  FindPassesResult,
+  StarlinkCensusEntry,
+  StarlinkCensusResult,
+} from '@satellites/types';
+
+// ─── FE-only types (not part of the HTTP API contract) ───────────────────────
+
 export interface SatellitePosition {
   lat_deg: number;
   lon_deg: number;
@@ -37,66 +51,8 @@ export interface PositionState {
   loading: boolean;
 }
 
-// ─── Pass prediction ──────────────────────────────────────────────────────────
-
-export interface PassPoint {
-  time:   string;
-  az_deg: number;
-  el_deg: number;
-}
-
-export interface CelestialPosition {
-  name: string;
-  az_deg: number;
-  el_deg: number;
-  icon: string;
-}
-
-export interface SatellitePass {
-  rise:             PassPoint;
-  peak:             PassPoint;
-  set:              PassPoint;
-  visible:          boolean;
-  maxElevation_deg: number;
-  duration_s:       number;
-  magnitude:        number | null;
-  track:            PassPoint[];
-  celestialBodies:  CelestialPosition[];
-}
-
-export interface FindPassesResult {
-  satellite: { noradId: number; name: string; tleAge_h: number };
-  observer:  { lat_deg: number; lon_deg: number; alt_km: number };
-  passes:    SatellitePass[];
-}
-
-export interface SatelliteSummary {
-  noradId:     number;
-  name:        string;
-  groupName:   string;
-  inclination: number;
-  periodMin:   number;
-  country?:    string;
-}
-
 export interface PassSelection {
   pass:        SatellitePass;
   observerLat: number;
   observerLon: number;
-}
-
-export interface StarlinkCensusEntry {
-  noradId: number;
-  name: string;
-  altKm: number;
-  epochMs: number;
-}
-
-export interface StarlinkCensusResult {
-  total: number;
-  active: number;
-  climbing: number;
-  decaying: number;
-  criticalList: StarlinkCensusEntry[];
-  recentLaunches: StarlinkCensusEntry[];
 }

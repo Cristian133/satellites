@@ -8,7 +8,7 @@ import { temeToEcef }             from "../math/coords.js";
 import { sunDirectionEcef, isInEarthShadow, sunElevationDeg } from "../math/sun.js";
 import { stdMagnitude, apparentMagnitude }                    from "../math/magnitude.js";
 import { getCelestialPositions }  from "../math/celestial.js";
-import type { CelestialPosition } from "../math/celestial.js";
+import type { PassPoint, SatellitePass, FindPassesResult } from "@satellites/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -28,24 +28,6 @@ export interface Observer {
   alt_km:  number;
 }
 
-export interface PassPoint {
-  time:   string;
-  az_deg: number;
-  el_deg: number;
-}
-
-export interface SatellitePass {
-  rise:             PassPoint;
-  peak:             PassPoint;
-  set:              PassPoint;
-  visible:          boolean;
-  maxElevation_deg: number;
-  duration_s:       number;
-  magnitude:        number | null;
-  track:            PassPoint[];
-  celestialBodies:  CelestialPosition[];
-}
-
 export interface FindPassesOptions {
   days?:             number;
   minElevation_deg?: number;
@@ -56,12 +38,6 @@ export interface TleData {
   line1:    string;
   line2:    string;
   epoch_ms: number;
-}
-
-export interface FindPassesResult {
-  satellite: { noradId: number; name: string; tleAge_h: number };
-  observer:  Observer;
-  passes:    SatellitePass[];
 }
 
 export interface PassesWorkerData {

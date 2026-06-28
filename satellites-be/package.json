@@ -23,6 +23,7 @@
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@google/genai": "^2.5.0",
+    "@satellites/types": "file:../packages/types",
     "@wasmer/sgp4": "file:vendor/wasmer-sgp4",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",

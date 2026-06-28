@@ -1,6 +1,6 @@
 # Plan de Profesionalización — Satellites
 
-Stack actual: Angular 21 + CesiumJS (FE), Express 5 + TypeScript + SQLite + WASM SGP4 (BE).  
+Stack actual: Angular 21 + CesiumJS (FE), Express 5 + TypeScript + SQLite + WASM SGP4 (BE).
 El stack está bien elegido. Este plan no cambia frameworks — ataca deuda estructural y de calidad antes de que las features planificadas (debris, reentry, NEOs, ground stations) la profundicen.
 
 ---
@@ -17,7 +17,7 @@ El stack está bien elegido. Este plan no cambia frameworks — ataca deuda estr
 | 0.6 | Logger estructurado con **Pino** (reemplazar `console.log`/`console.error`) | BE | 1 h |
 | 0.7 | CI con **GitHub Actions**: lint → typecheck → test → build en cada push/PR | Ambos | 3 h |
 
-**¿Por qué todo esto primero?**  
+**¿Por qué todo esto primero?**
 0.1 es un riesgo activo. 0.3 es mecánica orbital — un bug ahí es invisible a ojo y más caro cuanto más física se acumule encima. 0.5–0.7 son el piso mínimo de una API expuesta. La CI (0.7) protege todo lo siguiente.
 
 ---

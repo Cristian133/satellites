@@ -2,7 +2,8 @@
 
 import { Worker }        from "worker_threads";
 import path              from "path";
-import type { PassesWorkerData, FindPassesResult } from "../workers/passes.worker.js";
+import type { PassesWorkerData } from "../workers/passes.worker.js";
+import type { FindPassesResult } from "@satellites/types";
 
 // Detect dev (tsx) vs prod (compiled JS) to resolve worker path correctly
 const WORKER_EXT  = path.extname(__filename);

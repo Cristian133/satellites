@@ -1,5 +1,18 @@
 "use strict";
 
+// Re-export API contract types from the shared package — single source of truth
+export type {
+  SatelliteSummary,
+  FindPassesResult,
+  SatellitePass,
+  PassPoint,
+  CelestialPosition,
+  StarlinkCensusResult,
+  StarlinkCensusEntry,
+} from "@satellites/types";
+
+// BE-internal types (not part of the HTTP API contract)
+
 export interface TleRow {
   name:     string;
   line1:    string;
@@ -7,25 +20,7 @@ export interface TleRow {
   epoch_ms: number;
 }
 
-export interface SatelliteSummary {
-  noradId:     number;
-  name:        string;
-  groupName:   string;
-  inclination: number;
-  periodMin:   number;
-  country?:    string;
-}
-
 export interface StatsResult {
   totalSatellites: number;
   lastSync:        unknown;
-}
-
-export interface StarlinkCensusResult {
-  total:          number;
-  active:         number;
-  climbing:       number;
-  decaying:       number;
-  criticalList:   { noradId: number; name: string; altKm: number; epochMs: number }[];
-  recentLaunches: { noradId: number; name: string; altKm: number; epochMs: number }[];
 }

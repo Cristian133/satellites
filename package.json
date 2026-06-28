@@ -1,0 +1,19 @@
+{
+  "name": "satellites",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2"
+  },
+  "lint-staged": {
+    "satellites-be/src/**/*.ts": [
+      "bash -c 'cd satellites-be && eslint --fix --max-warnings=0 \"${@#satellites-be/}\"' --"
+    ],
+    "satellites-fe/src/**/*.{ts,html}": [
+      "bash -c 'cd satellites-fe && eslint --fix --max-warnings=0 \"${@#satellites-fe/}\"' --"
+    ]
+  }
+}

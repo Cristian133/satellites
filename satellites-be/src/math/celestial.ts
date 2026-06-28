@@ -2,6 +2,7 @@
 
 import { julianDate, gmst82, rot3 } from "./coords.js";
 import { sunDirectionEcef } from "./sun.js";
+import type { CelestialPosition } from "@satellites/types";
 
 const RAD = Math.PI / 180;
 const DEG = 180 / Math.PI;
@@ -9,12 +10,7 @@ const AU_KM = 1.495978707e8;
 const EARTH_A = 6378.137;
 const EARTH_E2 = 2 / 298.257223563 - (1 / 298.257223563) ** 2;
 
-export interface CelestialPosition {
-  name: string;
-  az_deg: number;
-  el_deg: number;
-  icon: string;
-}
+export type { CelestialPosition };
 
 interface KeplerElements {
   a: number;      // Semi-major axis in AU
