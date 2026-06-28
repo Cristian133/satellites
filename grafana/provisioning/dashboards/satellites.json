@@ -1,0 +1,99 @@
+{
+  "title": "Satellites API",
+  "uid": "satellites-api",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "HTTP Request Rate (req/s)",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m])) by (route, method)",
+          "legendFormat": "{{method}} {{route}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HTTP Latency p95 (s)",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
+          "legendFormat": "p95 {{route}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Pass Calculation Duration p95 (s)",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(pass_calculation_duration_seconds_bucket[10m])) by (le))",
+          "legendFormat": "p95 worker"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "TLE Age (hours)",
+      "gridPos": { "x": 12, "y": 8, "w": 6, "h": 4 },
+      "options": { "colorMode": "background", "thresholds": { "steps": [
+        { "color": "green", "value": 0 },
+        { "color": "yellow", "value": 24 },
+        { "color": "red", "value": 48 }
+      ]}},
+      "targets": [{ "expr": "tle_age_hours", "legendFormat": "age" }]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Total Satellites in Catalog",
+      "gridPos": { "x": 18, "y": 8, "w": 6, "h": 4 },
+      "targets": [{ "expr": "satellites_total", "legendFormat": "satellites" }]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Sync Failures",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "increase(sync_failures_total[1h])",
+          "legendFormat": "{{source}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "HTTP Error Rate (5xx)",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) by (route)",
+          "legendFormat": "5xx {{route}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Consecutive Sync Failures",
+      "gridPos": { "x": 0, "y": 12, "w": 6, "h": 4 },
+      "options": { "colorMode": "background", "thresholds": { "steps": [
+        { "color": "green", "value": 0 },
+        { "color": "red", "value": 2 }
+      ]}},
+      "targets": [{ "expr": "sync_consecutive_failures", "legendFormat": "failures" }]
+    }
+  ]
+}

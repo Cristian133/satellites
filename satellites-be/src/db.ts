@@ -22,7 +22,7 @@ export {
   upsertTles,
   searchSatellites,
   getTleByNoradId,
-  getStats,
+  getHealth,
   startSyncLog,
   finishSyncLog,
   getStarlinkCensus,

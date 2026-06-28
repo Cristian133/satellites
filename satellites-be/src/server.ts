@@ -5,10 +5,18 @@ import { createApp }     from "./app.js";
 import { syncAll, startCronJob } from "./services/tle-sync.service.js";
 import { logger }        from "./logger.js";
 import { env }           from "./config/env.js";
+import { initSentry }    from "./telemetry/sentry.js";
+import { updateTleAgeGauge } from "./repositories/tle.repository.js";
+
+// Sentry must be initialized before any other imports that might throw
+initSentry();
 
 async function main(): Promise<void> {
   const db  = openDatabase();
   const app = createApp(db);
+
+  // Seed TLE age gauge with current catalog state
+  updateTleAgeGauge(db);
 
   if (env.SYNC_ON_START) {
     syncAll(db).catch((err: unknown) => {

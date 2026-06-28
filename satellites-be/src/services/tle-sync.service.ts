@@ -3,11 +3,16 @@
 import cron                                                      from "node-cron";
 import type Database                                             from "better-sqlite3";
 import { parseCatalog }                                          from "../tle-parser.js";
-import { upsertTles, startSyncLog, finishSyncLog }               from "../repositories/tle.repository.js";
+import { upsertTles, startSyncLog, finishSyncLog, updateTleAgeGauge } from "../repositories/tle.repository.js";
 import { logger }                                                from "../logger.js";
 import { env }                                                   from "../config/env.js";
+import { syncFailuresTotal, syncConsecutiveFailures }            from "../metrics/registry.js";
 
 interface Source { name: string; url: string }
+
+// Tracks consecutive full-sync failures to trigger a fatal alert
+let consecutiveFullSyncFailures = 0;
+const ALERT_THRESHOLD = 2;
 
 export interface SyncResult {
   inserted:    number;
@@ -49,6 +54,7 @@ async function syncSource(db: Database.Database, source: Source): Promise<SyncRe
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error({ source: source.name, err: message }, `${tag} fetch failed`);
+    syncFailuresTotal.inc({ source: source.name });
     finishSyncLog(db, logId, { totalParsed: 0, inserted: 0, updated: 0, parseErrors: 1, status: "error" });
     return { inserted: 0, updated: 0, parseErrors: 1 };
   }
@@ -131,6 +137,22 @@ export async function syncAll(db: Database.Database): Promise<SyncResult> {
     (acc, r) => ({ inserted: acc.inserted + r.inserted, updated: acc.updated + r.updated, parseErrors: acc.parseErrors + r.parseErrors }),
     { inserted: 0, updated: 0, parseErrors: 0 },
   );
+
+  const hasErrors = totals.parseErrors > 0 || results.every(r => r.parseErrors > 0);
+  if (hasErrors) {
+    consecutiveFullSyncFailures++;
+    syncConsecutiveFailures.set(consecutiveFullSyncFailures);
+    if (consecutiveFullSyncFailures >= ALERT_THRESHOLD) {
+      logger.fatal(
+        { alert: true, consecutiveFailures: consecutiveFullSyncFailures },
+        "[sync] TLE sync has failed multiple consecutive cycles — catalog may be stale",
+      );
+    }
+  } else {
+    consecutiveFullSyncFailures = 0;
+    syncConsecutiveFailures.set(0);
+    updateTleAgeGauge(db);
+  }
 
   logger.info(totals, "[sync] Complete");
   return totals;

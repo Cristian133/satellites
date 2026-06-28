@@ -20,7 +20,15 @@ export interface TleRow {
   epoch_ms: number;
 }
 
-export interface StatsResult {
+export interface HealthResult {
+  status:          "healthy" | "degraded";
+  uptime_s:        number;
   totalSatellites: number;
-  lastSync:        unknown;
+  tle: {
+    oldestEpochMs: number;
+    newestEpochMs: number;
+    ageHours:      number;
+  };
+  lastSync: unknown;
+  db:       { ok: boolean };
 }

@@ -2,7 +2,8 @@
 
 import Database          from "better-sqlite3";
 import type { TleRecord } from "../tle-parser.js";
-import type { SatelliteSummary, StatsResult, StarlinkCensusResult, TleRow } from "../types/index.js";
+import type { SatelliteSummary, HealthResult, StarlinkCensusResult, TleRow } from "../types/index.js";
+import { tleAgeHoursGauge } from "../metrics/registry.js";
 
 // ─── Row shapes ───────────────────────────────────────────────────────────────
 
@@ -225,12 +226,57 @@ export function getTleByNoradId(db: Database.Database, noradId: number): (DbTleR
   return stmts(db).getByNorad.get(noradId) as (DbTleRow & TleRow) | undefined;
 }
 
-export function getStats(db: Database.Database): StatsResult {
+interface TleEpochRow { oldest_ms: number; newest_ms: number }
+
+export function getHealth(db: Database.Database): HealthResult {
   const { count, lastSync } = stmts(db);
-  return {
-    totalSatellites: count.get()!.n,
-    lastSync:        lastSync.get() ?? null,
-  };
+
+  let tleInfo = { oldestEpochMs: 0, newestEpochMs: 0, ageHours: 0 };
+
+  try {
+    const n = count.get()!.n;
+
+    const epochRow = db
+      .prepare("SELECT MIN(epoch_ms) AS oldest_ms, MAX(epoch_ms) AS newest_ms FROM tles")
+      .get() as TleEpochRow | undefined;
+
+    if (epochRow && epochRow.oldest_ms) {
+      const ageHours = (Date.now() - epochRow.oldest_ms) / 3_600_000;
+      tleInfo = { oldestEpochMs: epochRow.oldest_ms, newestEpochMs: epochRow.newest_ms, ageHours: Math.round(ageHours * 10) / 10 };
+    }
+
+    const status: HealthResult["status"] = tleInfo.ageHours > 48 || n === 0 ? "degraded" : "healthy";
+    return {
+      status,
+      uptime_s:        Math.floor(process.uptime()),
+      totalSatellites: n,
+      tle:             tleInfo,
+      lastSync:        lastSync.get() ?? null,
+      db:              { ok: true },
+    };
+  } catch {
+    return {
+      status:          "degraded",
+      uptime_s:        Math.floor(process.uptime()),
+      totalSatellites: 0,
+      tle:             tleInfo,
+      lastSync:        null,
+      db:              { ok: false },
+    };
+  }
+}
+
+export function updateTleAgeGauge(db: Database.Database): void {
+  try {
+    const row = db
+      .prepare("SELECT MIN(epoch_ms) AS oldest_ms FROM tles")
+      .get() as { oldest_ms: number | null } | undefined;
+    if (row?.oldest_ms) {
+      tleAgeHoursGauge.set((Date.now() - row.oldest_ms) / 3_600_000);
+    }
+  } catch {
+    // non-fatal — metrics best-effort
+  }
 }
 
 export interface FinishSyncParams {

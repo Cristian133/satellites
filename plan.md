@@ -95,15 +95,54 @@ satellites-fe/src/app/
 
 ---
 
+## Fase 4 — Observabilidad
+
+El sistema ya tiene logs estructurados (Pino) y un endpoint `/api/status`. Esta fase lo convierte en algo operable: métricas cuantificables, rastreo de errores y visibilidad de lo que ocurre dentro del worker de passes.
+
+| # | Tarea | Detalle | Esfuerzo |
+|---|-------|---------|----------|
+| 4.1 | Endpoint `/metrics` compatible con Prometheus | Exponer contadores y histogramas desde `prom-client`: requests por ruta, duración de pass-calculation, edad del TLE, fallos de sync | 3 h |
+| 4.2 | Dashboard Grafana en docker-compose | Contenedor `grafana` + `prometheus` con scrape config apuntando al BE; panel de latencia, TLE staleness y errores | 3 h |
+| 4.3 | Sentry en BE y FE | Capturar excepciones no manejadas; en el worker de passes, capturar errores de propagación SGP4 con contexto (noradId, TLE age) | 2 h |
+| 4.4 | OpenTelemetry traces para pass-calculation | Span por satélite propagado dentro del worker; exportar a Jaeger o OTLP; útil para detectar qué satélites son outliers de latencia | 4 h |
+| 4.5 | Alertas de TLE sync | Si el sync falla dos ciclos seguidos (12 h), que Pino emita un log `fatal` con campo `alert: true`; NGINX o Prometheus Alertmanager puede reaccionar | 1 h |
+| 4.6 | Health check detallado en `/api/status` | Actualmente devuelve `{ok: true}`; ampliar con estado de DB, edad del TLE más reciente y uptime; usar ese endpoint en el healthcheck de docker-compose | 1 h |
+
+**¿Por qué aquí?**
+Sin métricas no se sabe si el worker de passes tarda 200 ms o 20 s. El plan de features (debris, reentry, NEOs) va a multiplicar la carga de cómputo; instrumentar antes de escalar evita depurar en producción.
+
+---
+
+## Fase 5 — Release y Despliegue
+
+Convierte el proyecto en algo que se puede desplegar y actualizar de forma repetible, con TLS, sin downtime y con los cabos sueltos de fases anteriores cerrados.
+
+| # | Tarea | Detalle | Esfuerzo |
+|---|-------|---------|----------|
+| 5.1 | CD en GitHub Actions (deploy automático a VPS) | Paso adicional al CI existente: build de imagen Docker, push a ghcr.io, SSH al servidor y `docker compose up -d --pull always` | 3 h |
+| 5.2 | TLS con Let's Encrypt vía Traefik o Certbot | Añadir contenedor Traefik en docker-compose como ingress; certificado automático por dominio; reemplaza el server block HTTP-only de NGINX | 3 h |
+| 5.3 | Gestión de secretos en producción | Variables de entorno sensibles (`API_KEY`, Sentry DSN) via GitHub Actions secrets + Docker secrets; nunca en el repo ni en docker-compose.yml | 1 h |
+| 5.4 | Estrategia de backup de SQLite | Script cron que copia el archivo `.db` a S3/Backblaze con retención de 30 días; documentar procedimiento de restore | 2 h |
+| 5.5 | Cliente HTTP generado desde OpenAPI (deuda 2.6) | Depende de 1.7 (`zod-to-openapi`); usar `kubb` o `openapi-generator` para generar el cliente Angular y eliminar la redefinición manual de tipos en `satellite.model.ts` | 3 h |
+| 5.6 | E2E tests con Playwright (deuda 2.8) | Flujo crítico: buscar satélite → ver órbita → ver pases; correr en CI contra el build de producción | 4 h |
+| 5.7 | Evaluar migración SQLite → PostgreSQL (deuda 3.5) | Solo necesario si se escala a múltiples réplicas del BE; si no, WAL + backup (5.4) es suficiente | 8 h |
+
+**¿Por qué aquí y no antes?**
+El CD y TLS requieren un servidor real apuntando a un dominio — no tienen sentido hasta tener algo estable para desplegar. Los ítems 5.5–5.7 son deuda técnica diferida explícitamente en fases anteriores.
+
+---
+
 ## Resumen de esfuerzo
 
 | Fase | Horas | Prioridad |
 |------|-------|-----------|
-| Fase 0 — Calidad y Seguridad | ~14 h | Alta — hacer primero |
-| Fase 1 — Estructura BE | ~18 h | Media |
-| Fase 2 — Estructura FE | ~18 h | Media |
-| Fase 3 — Performance | ~16 h | Baja |
-| **Total** | **~66 h** | |
+| Fase 0 — Calidad y Seguridad | ~14 h | ✅ Completada |
+| Fase 1 — Estructura BE | ~18 h | ✅ Completada |
+| Fase 2 — Estructura FE | ~18 h | ✅ Completada |
+| Fase 3 — Performance | ~16 h | ✅ Completada |
+| Fase 4 — Observabilidad | ~14 h | Alta |
+| Fase 5 — Release y Despliegue | ~24 h | Media |
+| **Total** | **~104 h** | |
 
 ## Orden de ejecución
 
@@ -112,6 +151,9 @@ Semana 1 → Fase 0 completa
 Semana 2 → Fase 1 (1.1–1.5 primero; Docker y OpenAPI al final)
 Semana 3 → Fase 2 (2.1–2.5 antes del cliente generado)
 Semana 4 → Fase 3 + tipos compartidos
+Semana 5 → Fase 4 (4.1–4.3 antes de 4.4; 4.5–4.6 son rápidos y se pueden intercalar)
+Semana 6 → Fase 5 (5.1–5.3 en orden; 5.5–5.7 en paralelo con otras fases si hay tiempo)
 ```
 
 La Fase 2 puede comenzarse en paralelo con la segunda mitad de Fase 1 (2.1–2.5 no dependen de OpenAPI). El item 2.6 sí depende de 1.7.
+La Fase 4 puede comenzarse en paralelo con Fase 5 — son independientes entre sí excepto que 5.1 (CD) se beneficia de tener 4.1 (métricas) para validar deploys.

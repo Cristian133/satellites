@@ -9,4 +9,6 @@ export const env = {
   NODE_ENV:       process.env["NODE_ENV"]      ?? "development",
   /** Optional. When set, all write endpoints require `x-api-key: <value>` header. */
   API_KEY:        process.env["API_KEY"],
+  /** Optional. When set, errors are reported to Sentry. */
+  SENTRY_DSN:     process.env["SENTRY_DSN"],
 } as const;
