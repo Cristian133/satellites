@@ -39,6 +39,25 @@
     </div>
   }
 
+  <!-- Orbit filter chips -->
+  @if (results().length > 0) {
+    <div class="palette__orbit-filter">
+      <button
+        class="orbit-chip"
+        [class.orbit-chip--active]="!selectedOrbitClass()"
+        (click)="selectedOrbitClass.set(null)"
+      >Todos</button>
+      @for (f of orbitFilters; track f) {
+        <button
+          class="orbit-chip"
+          [attr.data-orbit]="f"
+          [class.orbit-chip--active]="selectedOrbitClass() === f"
+          (click)="selectedOrbitClass.set(f)"
+        >{{ f }}</button>
+      }
+    </div>
+  }
+
   <!-- Filter bar -->
   @if (results().length > 0) {
     <div class="palette__filters">
@@ -60,6 +79,28 @@
 
   <!-- Results -->
   <div class="palette__results">
+
+    <!-- Recent searches -->
+    @if (showRecent()) {
+      <div class="palette__recent">
+        <div class="recent__header">
+          <span class="recent__title">Recientes</span>
+          <button class="recent__clear" (click)="clearRecentSearches()">Limpiar</button>
+        </div>
+        @for (r of recentSearches(); track r.noradId) {
+          <div class="sat-row" (click)="select(r.noradId)">
+            <span class="recent__clock">🕐</span>
+            <span class="sat-row__name">{{ r.name }}</span>
+            <span class="sat-row__meta">
+              <span class="sat-row__orbit" [attr.data-type]="r.orbitClass">{{ r.orbitClass }}</span>
+              <span class="sat-row__id">{{ r.noradId }}</span>
+            </span>
+          </div>
+        }
+        <div class="recent__divider"></div>
+      </div>
+    }
+
     @if (grouped().length === 0 && !loading()) {
       <div class="palette__empty">
         @if (selectedCountry()) {

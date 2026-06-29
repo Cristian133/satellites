@@ -93,6 +93,54 @@
   &:hover { color: #94a3b8; }
 }
 
+// ── Orbit filter chips ────────────────────────────────────────────────────────
+
+.palette__orbit-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.orbit-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  color: #475569;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.6rem;
+  transition: all 0.15s;
+
+  &:hover { border-color: rgba(255,255,255,0.18); color: #94a3b8; }
+
+  &--active {
+    color: #e2e8f0;
+    border-color: rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.08);
+  }
+
+  &[data-orbit='LEO'] {
+    &:hover, &.orbit-chip--active { color: #38bdf8; border-color: rgba(56,189,248,0.45); background: rgba(56,189,248,0.1); }
+  }
+  &[data-orbit='MEO'] {
+    &:hover, &.orbit-chip--active { color: #fb923c; border-color: rgba(251,146,60,0.45); background: rgba(251,146,60,0.1); }
+  }
+  &[data-orbit='GEO'] {
+    &:hover, &.orbit-chip--active { color: #fbbf24; border-color: rgba(251,191,36,0.45); background: rgba(251,191,36,0.1); }
+  }
+  &[data-orbit='HEO'] {
+    &:hover, &.orbit-chip--active { color: #f87171; border-color: rgba(248,113,113,0.45); background: rgba(248,113,113,0.1); }
+  }
+}
+
 // ── Filter bar ───────────────────────────────────────────────────────────────
 
 .palette__filters {
@@ -132,6 +180,53 @@
     background: #0f172a;
     color: #e2e8f0;
   }
+}
+
+// ── Recent searches ───────────────────────────────────────────────────────────
+
+.palette__recent {
+  padding: 0.4rem 0 0;
+  flex-shrink: 0;
+}
+
+.recent__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 1rem 0.2rem;
+}
+
+.recent__title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #334155;
+}
+
+.recent__clear {
+  background: none;
+  border: none;
+  color: #334155;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.62rem;
+  padding: 0.1rem 0.3rem;
+  transition: color 0.15s;
+  &:hover { color: #94a3b8; }
+}
+
+.recent__clock {
+  font-size: 0.7rem;
+  opacity: 0.4;
+  flex-shrink: 0;
+  margin-right: 0.1rem;
+}
+
+.recent__divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  margin: 0.4rem 1rem;
 }
 
 // ── Results ──────────────────────────────────────────────────────────────────

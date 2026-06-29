@@ -14,7 +14,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, debounceTime, switchMap } from 'rxjs';
 import { SatelliteService } from '../../../core/services/satellite.service';
-import type { SatelliteSummary } from '../../../core/models/satellite.model';
+import type { SatelliteSummary, OrbitClass, RecentSearch } from '../../../core/models/satellite.model';
 
 const GROUP_META: Record<string, { label: string; icon: string }> = {
   'Space Stations':      { label: 'Estaciones Espaciales', icon: '🛰' },
@@ -90,6 +90,9 @@ const COUNTRY_INFO: Record<string, { name: string; flag: string }> = {
   'NLD':  { name: 'Países Bajos', flag: '🇳🇱' },
 };
 
+const RECENT_SEARCHES_KEY = 'satellites:recent_searches';
+const MAX_RECENT = 5;
+
 function groupMeta(name: string) {
   return GROUP_META[name] ?? { label: name, icon: '🛸' };
 }
@@ -114,8 +117,12 @@ export class SatelliteSearch implements OnInit, OnDestroy {
   readonly results  = signal<SatelliteSummary[]>([]);
   readonly loading  = signal(false);
   readonly activeIdx = signal(-1);
-  readonly selectedCountry = signal<string>('');
-  readonly showHelp = signal(false);
+  readonly selectedCountry    = signal<string>('');
+  readonly selectedOrbitClass = signal<OrbitClass | null>(null);
+  readonly recentSearches     = signal<RecentSearch[]>([]);
+  readonly showHelp           = signal(false);
+
+  readonly orbitFilters: ReadonlyArray<OrbitClass> = ['LEO', 'MEO', 'GEO', 'HEO'];
 
   toggleHelp(): void {
     this.showHelp.set(!this.showHelp());
@@ -138,11 +145,15 @@ export class SatelliteSearch implements OnInit, OnDestroy {
   });
 
   readonly filteredResults = computed(() => {
-    const country = this.selectedCountry();
-    const sats = this.results();
-    if (!country) return sats;
-    return sats.filter(s => (s.country || 'UNK') === country);
+    const country    = this.selectedCountry();
+    const orbitClass = this.selectedOrbitClass();
+    const sats       = this.results();
+    return sats
+      .filter(s => !country    || (s.country || 'UNK') === country)
+      .filter(s => !orbitClass || s.orbitClass === orbitClass);
   });
+
+  readonly showRecent = computed(() => !this.query() && this.recentSearches().length > 0);
 
   readonly grouped = computed(() => {
     const map = new Map<string, SatelliteSummary[]>();
@@ -184,6 +195,7 @@ export class SatelliteSearch implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.loadRecentSearches();
     this.sub = this.query$.pipe(
       debounceTime(200),
       switchMap(q => {
@@ -233,6 +245,8 @@ export class SatelliteSearch implements OnInit, OnDestroy {
   }
 
   select(noradId: number): void {
+    const sat = this.results().find(s => s.noradId === noradId);
+    if (sat) this.saveRecentSearch(sat);
     this.satelliteSelected.emit(noradId);
     this.close();
   }
@@ -257,6 +271,43 @@ export class SatelliteSearch implements OnInit, OnDestroy {
     if (min >= 1380) return `${(min / 1440).toFixed(1)}d`;
     if (min >= 60)   return `${Math.floor(min / 60)}h ${min % 60}m`;
     return `${min}m`;
+  }
+
+  clearRecentSearches(): void {
+    this.recentSearches.set([]);
+    try { localStorage.removeItem(RECENT_SEARCHES_KEY); } catch { /* unavailable */ }
+  }
+
+  private loadRecentSearches(): void {
+    try {
+      const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      const valid = parsed.filter(
+        (item): item is RecentSearch =>
+          typeof item === 'object' && item !== null &&
+          'noradId' in item && 'name' in item && 'orbitClass' in item,
+      );
+      this.recentSearches.set(valid);
+    } catch { /* localStorage no disponible o JSON inválido */ }
+  }
+
+  private saveRecentSearch(sat: SatelliteSummary): void {
+    const entry: RecentSearch = {
+      noradId:    sat.noradId,
+      name:       sat.name,
+      orbitClass: sat.orbitClass,
+      searchedAt: Date.now(),
+    };
+    const updated = [
+      entry,
+      ...this.recentSearches().filter(r => r.noradId !== sat.noradId),
+    ].slice(0, MAX_RECENT);
+    this.recentSearches.set(updated);
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+    } catch { /* unavailable */ }
   }
 
 }
