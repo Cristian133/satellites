@@ -31,7 +31,7 @@ describe('SatelliteService', () => {
       expect(req.request.method).toBe('GET');
 
       const mockData: SatelliteSummary[] = [
-        { noradId: 25544, name: 'ISS (ZARYA)', groupName: 'Space Stations', inclination: 51.6, periodMin: 92.8 },
+        { noradId: 25544, name: 'ISS (ZARYA)', groupName: 'Space Stations', inclination: 51.6, periodMin: 92.8, orbitClass: 'LEO' },
       ];
       req.flush(mockData);
 

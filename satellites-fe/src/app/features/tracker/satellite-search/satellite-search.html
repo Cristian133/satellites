@@ -103,8 +103,8 @@
           >
             <span class="sat-row__name">{{ sat.name }}</span>
             <span class="sat-row__meta">
-              <span class="sat-row__orbit" [attr.data-type]="orbitType(sat.periodMin, sat.inclination)">
-                {{ orbitType(sat.periodMin, sat.inclination) }}
+              <span class="sat-row__orbit" [attr.data-type]="sat.orbitClass">
+                {{ sat.orbitClass }}
               </span>
               <span class="sat-row__period">{{ formatPeriod(sat.periodMin) }}</span>
               <span class="sat-row__inc">{{ sat.inclination }}°</span>

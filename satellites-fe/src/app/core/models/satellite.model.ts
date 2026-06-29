@@ -2,6 +2,7 @@
 import type { SatellitePass, SatelliteState } from '@satellites/types';
 export type {
   SatelliteSummary,
+  OrbitClass,
   PassPoint,
   CelestialPosition,
   SatellitePass,

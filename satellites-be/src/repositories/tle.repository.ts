@@ -2,7 +2,7 @@
 
 import Database          from "better-sqlite3";
 import type { TleRecord } from "../tle-parser.js";
-import type { SatelliteSummary, HealthResult, StarlinkCensusResult, TleRow } from "../types/index.js";
+import type { SatelliteSummary, OrbitClass, HealthResult, StarlinkCensusResult, TleRow } from "../types/index.js";
 import { tleAgeHoursGauge } from "../metrics/registry.js";
 
 // ─── Row shapes ───────────────────────────────────────────────────────────────
@@ -40,6 +40,7 @@ interface SearchRow {
   group_name:  string;
   inclination: number;
   period_min:  number;
+  orbit_class: OrbitClass;
   country?:    string;
 }
 
@@ -134,6 +135,12 @@ function stmts(db: Database.Database): Stmts {
              COALESCE(t.group_name, 'Other') AS group_name,
              t.inclination,
              ROUND(1440.0 / t.mean_motion, 0) AS period_min,
+             CASE
+               WHEN t.eccentricity > 0.25                                         THEN 'HEO'
+               WHEN ROUND(1440.0 / t.mean_motion, 0) BETWEEN 1386 AND 1486        THEN 'GEO'
+               WHEN ROUND(1440.0 / t.mean_motion, 0) > 127                        THEN 'MEO'
+               ELSE 'LEO'
+             END AS orbit_class,
              c.country
         FROM tles t
         LEFT JOIN satcat_countries c ON t.norad_id = c.norad_id
@@ -218,6 +225,7 @@ export function searchSatellites(
     groupName:   r.group_name,
     inclination: Math.round(r.inclination * 10) / 10,
     periodMin:   Math.round(r.period_min),
+    orbitClass:  r.orbit_class,
     country:     r.country,
   }));
 }

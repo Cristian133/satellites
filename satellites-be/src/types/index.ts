@@ -3,6 +3,7 @@
 // Re-export API contract types from the shared package — single source of truth
 export type {
   SatelliteSummary,
+  OrbitClass,
   FindPassesResult,
   SatellitePass,
   PassPoint,

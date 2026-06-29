@@ -6,12 +6,15 @@
 
 // ─── Satellite catalogue ──────────────────────────────────────────────────────
 
+export type OrbitClass = 'LEO' | 'MEO' | 'GEO' | 'HEO';
+
 export interface SatelliteSummary {
   noradId:     number;
   name:        string;
   groupName:   string;
   inclination: number;
   periodMin:   number;
+  orbitClass:  OrbitClass;
   country?:    string;
 }
 

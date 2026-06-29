@@ -259,10 +259,4 @@ export class SatelliteSearch implements OnInit, OnDestroy {
     return `${min}m`;
   }
 
-  orbitType(periodMin: number, inclination: number): string {
-    if (periodMin > 1200)          return 'GEO';
-    if (periodMin > 700)           return 'MEO';
-    if (Math.abs(inclination - 98) < 3) return 'SSO';
-    return 'LEO';
-  }
 }
