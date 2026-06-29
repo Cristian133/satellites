@@ -25,6 +25,20 @@ Prefix every npm invocation:
 PATH="$NODE_BIN:$PATH" $NODE $NPM <args>
 ```
 
+## Early exit — commits de solo documentación
+
+Antes de correr cualquier proceso, verificá los archivos modificados en el staging area:
+
+```bash
+git diff --cached --name-only
+```
+
+Si **todos** los archivos modificados tienen extensión `.md`, imprimí:
+
+> "Solo cambios en `.md` — pipeline omitido."
+
+Y no ejecutes ningún paso más.
+
 ## Step order
 
 Run these sequentially. If any step exits non-zero, stop immediately, report which step failed and show the last 30 lines of output.
